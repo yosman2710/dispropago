@@ -1,31 +1,36 @@
-import EscPosEncoder from 'esc-pos-encoder';
-import { NativeEventEmitter, NativeModules, PermissionsAndroid, Platform } from 'react-native';
-import BleManager from 'react-native-ble-manager';
+import { PermissionsAndroid, Platform } from 'react-native';
+import ThermalPrinter from 'react-native-thermal-printer';
 
-const BleManagerModule = NativeModules.BleManager;
-const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
-
+/**
+ * Service to handle thermal printing using react-native-thermal-printer
+ */
 export const PrinterService = {
   isInitialized: false,
   connectedDevice: null as string | null,
 
   /**
-   * Initialize the BLE Manager and request permissions
+   * Request Bluetooth permissions for Android
    */
   async init() {
     if (this.isInitialized) return true;
 
     try {
-      await BleManager.start({ showAlert: false });
-      this.isInitialized = true;
-
       if (Platform.OS === 'android' && Platform.Version >= 23) {
-        await PermissionsAndroid.requestMultiple([
+        const granted = await PermissionsAndroid.requestMultiple([
           PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
           PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
         ]);
+        
+        const allGranted = Object.values(granted).every(
+          (status) => status === PermissionsAndroid.RESULTS.GRANTED
+        );
+        
+        if (!allGranted) {
+          console.warn('Permissions not fully granted');
+        }
       }
+      this.isInitialized = true;
       return true;
     } catch (error) {
       console.error('BLE Init Error:', error);
@@ -34,22 +39,12 @@ export const PrinterService = {
   },
 
   /**
-   * Connect to a specific printer by its ID/Mac address
+   * Save the printer address for subsequent print jobs
    */
   async connect(deviceId: string) {
-    try {
-      await BleManager.connect(deviceId);
-      // Wait a bit for connection to stabilize
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Discover services to enable writing
-      await BleManager.retrieveServices(deviceId);
-      this.connectedDevice = deviceId;
-      return true;
-    } catch (error) {
-      console.error('BLE Connect Error:', error);
-      return false;
-    }
+    // For this library, we just store the address.
+    this.connectedDevice = deviceId;
+    return true;
   },
 
   /**
@@ -57,106 +52,48 @@ export const PrinterService = {
    */
   async printReceipt(sale: any) {
     if (!this.connectedDevice) {
-      // Auto-init for first time
+      // For demo purposes, if no device is connected, we might want to fail 
+      // or use a default one, but here we enforce connection.
       await this.init();
-      // Note: In production you'd want a device picker, 
-      // but we try to connect if we have a saved ID or search for one.
-      // throw new Error('Impresora no conectada');
     }
 
-    // Type guard for TypeScript
     if (!this.connectedDevice) {
-      throw new Error('No se pudo establecer conexión con la impresora');
+      throw new Error('No se ha configurado ninguna impresora');
     }
 
     try {
-      const encoder = new EscPosEncoder();
+      // Build the ticket payload using tags supported by react-native-thermal-printer
+      // Supported tags: [C] Center, [L] Left, [R] Right, <b> Bold, <font size='big'> Big Font
+      let payload = '[C]<b>DISPROPAGO POS</b>\n';
+      payload += '[C]RIF: J-12345678-9\n';
+      payload += '[C]--------------------------------\n';
+      payload += `[L]FECHA: ${new Date(sale.timestamp).toLocaleString()}\n`;
+      payload += `[L]CLIENTE: ${sale.customer.name}\n`;
+      payload += `[L]CEDULA: ${sale.customer.cedula}\n`;
+      payload += '[C]--------------------------------\n';
 
-      // Build the ticket
-      let result = encoder
-        .initialize()
-        .align('center')
-        .size('normal')
-        .text('DISPROPAGO POS')
-        .newline()
-        .text('RIF: J-12345678-9')
-        .newline()
-        .text('--------------------------------')
-        .newline()
-        .align('left')
-        .text(`FECHA: ${new Date(sale.timestamp).toLocaleString()}`)
-        .newline()
-        .text(`CLIENTE: ${sale.customer.name}`)
-        .newline()
-        .text(`CEDULA: ${sale.customer.cedula}`)
-        .newline()
-        .text('--------------------------------')
-        .newline();
-
-      // Items
+      // Items table
       sale.items.forEach((item: any) => {
         const name = item.name.substring(0, 15).padEnd(16);
         const qty = (item.weight || 0).toFixed(2).toString().padStart(5);
         const tot = (item.total || 0).toFixed(2).toString().padStart(9);
-        result = result.text(`${name}${qty}${tot}`).newline();
+        payload += `[L]${name}${qty}${tot}\n`;
       });
 
-      const encodedReceipt = result
-        .text('--------------------------------')
-        .newline()
-        .align('right')
-        .text('TOTAL BS:')
-        .newline()
-        .width(2)
-        .height(2)
-        .text(`${(sale.total_bs || 0).toFixed(2)}`)
-        .newline()
-        .width(1)
-        .height(1)
-        .text(`TASA: ${sale.rate || 0} Bs/$`)
-        .newline()
-        .text(`TOTAL USD: $${(sale.total_usd || 0).toFixed(2)}`)
-        .newline()
-        .align('center')
-        .newline()
-        .text('¡GRACIAS POR SU COMPRA!')
-        .newline()
-        .newline()
-        .newline()
-        .cut()
-        .encode();
+      payload += '[C]--------------------------------\n';
+      payload += '[R]TOTAL BS:\n';
+      payload += `[R]<font size='big'>${(sale.total_bs || 0).toFixed(2)}</font>\n`;
+      payload += `[R]TASA: ${sale.rate || 0} Bs/$\n`;
+      payload += `[R]TOTAL USD: $${(sale.total_usd || 0).toFixed(2)}\n`;
+      payload += '[L]\n';
+      payload += '[C]<b>¡GRACIAS POR SU COMPRA!</b>\n';
+      payload += '\n\n\n'; // Extra space for manual tearing
 
-      // Get services and characteristics
-      const peripheralData = await BleManager.retrieveServices(this.connectedDevice);
-
-      let writeService = '';
-      let writeCharacteristic = '';
-
-      // Heuristic to find the write characteristic for thermal printers
-      if (peripheralData.characteristics) {
-        for (const char of peripheralData.characteristics) {
-          const props = char.properties as any;
-          if (props && (props.Write || props.WriteWithoutResponse)) {
-            writeService = char.service;
-            writeCharacteristic = char.characteristic;
-            break;
-          }
-        }
-      }
-
-      if (!writeCharacteristic) throw new Error('No se encontró canal de impresión compatible');
-
-      // Send data in chunks of 20 bytes (safe for BLE MTU)
-      const dataArray = Array.from(encodedReceipt) as number[];
-      for (let i = 0; i < dataArray.length; i += 20) {
-        const chunk = dataArray.slice(i, i + 20);
-        await BleManager.writeWithoutResponse(
-          this.connectedDevice,
-          writeService,
-          writeCharacteristic,
-          chunk
-        );
-      }
+      await ThermalPrinter.printBluetooth({
+        payload,
+        macAddress: this.connectedDevice,
+        printerWidthMM: 58,
+      });
 
       return true;
     } catch (error: any) {
