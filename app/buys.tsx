@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, StyleSheet, Text, TouchableOpacity, View, StatusBar, Modal, ScrollView } from 'react-native';
+import { Alert, FlatList, Modal, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function SalesHistory() {
@@ -46,8 +46,8 @@ export default function SalesHistory() {
       '¿Está seguro de que desea anular esta venta? Esta acción no se puede deshacer.',
       [
         { text: 'CANCELAR', style: 'cancel' },
-        { 
-          text: 'SÍ, ANULAR', 
+        {
+          text: 'SÍ, ANULAR',
           style: 'destructive',
           onPress: async () => {
             const result = await storageService.voidSale(saleId);
@@ -63,8 +63,8 @@ export default function SalesHistory() {
   };
 
   const renderSale = ({ item }: { item: any }) => (
-    <TouchableOpacity 
-      style={[styles.saleCard, SHADOWS.small, item.voided && { opacity: 0.6 }]} 
+    <TouchableOpacity
+      style={[styles.saleCard, SHADOWS.small, item.voided && { opacity: 0.6 }]}
       onPress={() => setSelectedSale(item)}
       activeOpacity={0.7}
     >
@@ -100,7 +100,7 @@ export default function SalesHistory() {
             {item.customer.name} ({item.customer.cedula})
           </Text>
         </View>
-        
+
         <View style={styles.amountsRow}>
           <View style={styles.amountItem}>
             <Text style={styles.amountLabel}>Total USD</Text>
@@ -128,18 +128,6 @@ export default function SalesHistory() {
               <Ionicons name="chevron-back" size={28} color={COLORS.white} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>HISTORIAL DE VENTAS</Text>
-            <TouchableOpacity 
-              activeOpacity={0.8}
-              onPress={handleSync} 
-              disabled={syncing} 
-              style={[styles.syncButton, syncing && styles.syncDisabled]}
-            >
-              {syncing ? (
-                <ActivityIndicator size="small" color={COLORS.white} />
-              ) : (
-                <Ionicons name="cloud-upload" size={22} color={COLORS.white} />
-              )}
-            </TouchableOpacity>
           </View>
         </SafeAreaView>
       </LinearGradient>
@@ -148,6 +136,8 @@ export default function SalesHistory() {
         data={sales}
         keyExtractor={item => item.id}
         renderItem={renderSale}
+        numColumns={2}
+        columnWrapperStyle={styles.columnWrapper}
         contentContainerStyle={styles.list}
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
@@ -222,8 +212,8 @@ export default function SalesHistory() {
                     <TouchableOpacity style={[styles.ticketActionBtn, styles.printBtn]}>
                       <Text style={styles.ticketActionText}>RE-IMPRIMIR</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity 
-                      style={[styles.ticketActionBtn, styles.voidBtn]} 
+                    <TouchableOpacity
+                      style={[styles.ticketActionBtn, styles.voidBtn]}
                       onPress={() => handleVoid(selectedSale.id)}
                     >
                       <Text style={styles.ticketActionText}>ANULAR</Text>
@@ -281,12 +271,17 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   list: {
-    padding: SPACING.lg,
+    padding: SPACING.md,
+  },
+  columnWrapper: {
+    justifyContent: 'space-between',
+    gap: SPACING.md,
   },
   saleCard: {
+    flex: 0.49,
     backgroundColor: COLORS.white,
-    borderRadius: 20,
-    padding: SPACING.lg,
+    borderRadius: 16,
+    padding: SPACING.md,
     marginBottom: SPACING.md,
   },
   saleHeader: {
@@ -329,10 +324,10 @@ const styles = StyleSheet.create({
   cardDivider: {
     height: 1,
     backgroundColor: '#F5F5F5',
-    marginVertical: SPACING.md,
+    marginVertical: SPACING.sm,
   },
   saleDetails: {
-    gap: 8,
+    gap: 4,
   },
   customerRow: {
     flexDirection: 'row',
@@ -361,12 +356,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   amountValueUsd: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: '900',
     color: COLORS.primary,
   },
   amountValueBs: {
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: 'bold',
     color: COLORS.text,
   },

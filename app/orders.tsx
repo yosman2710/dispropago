@@ -3,9 +3,9 @@ import { COLORS, SHADOWS, SPACING } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useState, useEffect } from 'react';
-import { Dimensions, FlatList, Image, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View, StatusBar } from 'react-native';
-
+import React, { useEffect, useState } from 'react';
+import { Dimensions, FlatList, Image, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 const { width } = Dimensions.get('window');
 const isTablet = width > 768;
 
@@ -32,10 +32,10 @@ export default function ProductsScreen() {
           <Text style={styles.categoryText}>{item.category.toUpperCase()}</Text>
         </View>
       </View>
-      
+
       <View style={styles.productInfo}>
         <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-        
+
         <View style={styles.priceContainer}>
           <View style={styles.priceRow}>
             <Text style={styles.priceLabel}>USD</Text>

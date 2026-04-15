@@ -39,6 +39,14 @@ export const exchangeRateService = {
   }
 };
 
+// Helper to generate a valid UUID v4 string
+const generateUUID = () => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
 export const storageService = {
   /**
    * Save a sale locally to AsyncStorage.
@@ -48,7 +56,7 @@ export const storageService = {
     try {
       const newSale = {
         ...sale,
-        id: Date.now().toString(),
+        id: generateUUID(), // Now compatible with Supabase UUID type
         timestamp: new Date().toISOString(),
         synced: false,
         voided: false,
@@ -115,10 +123,10 @@ export const storageService = {
       let syncCount = 0;
 
       for (const sale of unsyncedSales) {
-        // 1. Insert into 'sales' table
-        const { data: saleRow, error: saleError } = await supabase
+        // 1. Upsert into 'sales' table (Updates if ID exists, inserts if not)
+        const { error: saleError } = await supabase
           .from('sales')
-          .insert([{
+          .upsert([{
             id: sale.id, // Primary key
             total_usd: sale.total_usd,
             total_bs: sale.total_bs,
@@ -126,12 +134,10 @@ export const storageService = {
             customer_name: sale.customer.name,
             customer_cedula: sale.customer.cedula,
             customer_phone: sale.customer.phone,
-            timestamp: sale.timestamp,
+            created_at: sale.timestamp,
             payment_details: sale.payments,
             status: sale.voided ? 'voided' : 'active'
-          }])
-          .select()
-          .single();
+          }]);
 
         if (saleError) {
           console.error('Error syncing sale metadata:', saleError);
@@ -141,10 +147,10 @@ export const storageService = {
         // 2. Insert into 'sale_items' table
         const itemsToInsert = sale.items.map((item: any) => ({
           sale_id: sale.id,
-          name: item.name,
-          price: item.price,
-          weight: item.weight,
-          total: item.total
+          product_name: item.name, // Ajustado de 'name' a 'product_name'
+          price_usd: item.price,
+          weight_kg: item.weight,
+          total_bs: item.total
         }));
 
         const { error: itemsError } = await supabase

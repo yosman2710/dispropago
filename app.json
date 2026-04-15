@@ -46,6 +46,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "cda22e61-0dd9-4480-b780-798d16247b4d"
+      }
+    },
+    "owner": "yosmanproton"
   }
 }
