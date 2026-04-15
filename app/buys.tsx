@@ -37,7 +37,7 @@ export default function SalesHistory() {
       Alert.alert('Sincronización Completada', `Se han exportado ${result.count} ventas correctamente.`);
       loadSales();
     } else {
-      Alert.alert('Error de Conexión', 'No se pudo conectar con Supabase. Verifica tu conexión a internet.');
+      Alert.alert('Sincronización Fallida', result.message || 'No se pudo conectar con el servidor.');
     }
   };
   const handleVoid = async (saleId: string) => {

@@ -47,6 +47,19 @@ const generateUUID = () => {
   });
 };
 
+/**
+ * Helper to check for real internet connectivity
+ */
+export const checkInternet = async () => {
+  try {
+    // Ping Google's DNS to verify actual internet access
+    const response = await fetch('https://8.8.8.8', { method: 'HEAD', mode: 'no-cors' });
+    return !!response;
+  } catch (e) {
+    return false;
+  }
+};
+
 export const storageService = {
   /**
    * Save a sale locally to AsyncStorage.
@@ -111,6 +124,16 @@ export const storageService = {
    */
   async syncToSupabase() {
     try {
+      // 1. Check for internet connectivity first
+      const hasInternet = await checkInternet();
+      if (!hasInternet) {
+        return { 
+          success: false, 
+          errorType: 'NO_INTERNET', 
+          message: 'Sin conexión a internet. Revisa tu red y vuelve a intentarlo.' 
+        };
+      }
+
       const salesStr = await AsyncStorage.getItem(SALES_STORAGE_KEY);
       if (!salesStr) return { success: true, count: 0 };
       
@@ -170,7 +193,11 @@ export const storageService = {
 
       return { success: true, count: syncCount };
     } catch (e) {
-      return { success: false, error: e };
+      return { 
+        success: false, 
+        error: e, 
+        message: 'Ocurrió un problema inesperado al sincronizar con el servidor.' 
+      };
     }
   }
 };

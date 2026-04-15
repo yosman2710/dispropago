@@ -72,7 +72,7 @@ export default function SalesReport() {
       Alert.alert('Exportación Exitosa', `Se han sincronizado ${result.count || 0} registros con el servidor.`);
       loadSales(); // Refresh to update synced status if needed
     } else {
-      Alert.alert('Error', 'No se pudo sincronizar los datos. Verifique la conexión.');
+      Alert.alert('Exportación Fallida', result.message || 'No se pudo sincronizar los datos. Verifique la conexión.');
     }
   };
 
