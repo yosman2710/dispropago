@@ -7,7 +7,7 @@ const { withProjectBuildGradle } = require('@expo/config-plugins');
 function withAndroidInsecureMaven(config) {
   return withProjectBuildGradle(config, (config) => {
     if (config.modResults.language === 'groovy') {
-      config.modResults.contents = addInsecureProtocolToBuildGradle(
+      config.modResults.contents = addGlobalInsecureRepoFix(
         config.modResults.contents
       );
     }
@@ -15,12 +15,25 @@ function withAndroidInsecureMaven(config) {
   });
 }
 
-function addInsecureProtocolToBuildGradle(buildGradle) {
-  // Find jcenter and other maven repos that might use http and add allowInsecureProtocol
-  return buildGradle.replace(
-    /url\s*["']http:\/\/jcenter\.bintray\.com["']/g,
-    'url "http://jcenter.bintray.com"; allowInsecureProtocol = true'
-  );
+function addGlobalInsecureRepoFix(buildGradle) {
+  // This block forces all repositories using http to allow insecure protocols
+  const fixBlock = `
+allprojects {
+    repositories {
+        all { ArtifactRepository repo ->
+            if (repo instanceof MavenArtifactRepository && repo.url.toString().startsWith("http://")) {
+                repo.allowInsecureProtocol = true
+            }
+        }
+    }
+}
+`;
+  
+  if (buildGradle.includes('allprojects {')) {
+    return buildGradle.replace('allprojects {', `allprojects { \n${fixBlock}`);
+  } else {
+    return buildGradle + fixBlock;
+  }
 }
 
 module.exports = withAndroidInsecureMaven;
