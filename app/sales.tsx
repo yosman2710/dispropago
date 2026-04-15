@@ -23,6 +23,9 @@ export default function SalesReport() {
 
   const totals = useMemo(() => {
     return sales.reduce((acc, sale) => {
+      // EXCLUDE VOIDED SALES FROM TOTALS
+      if (sale.voided) return acc;
+
       acc.cashBs += parseFloat(sale.payments.cash_bs || 0);
       acc.transferBs += parseFloat(sale.payments.transfer || 0);
       acc.posBs += parseFloat(sale.payments.pos || 0);

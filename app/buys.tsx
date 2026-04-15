@@ -40,19 +40,50 @@ export default function SalesHistory() {
       Alert.alert('Error de Conexión', 'No se pudo conectar con Supabase. Verifica tu conexión a internet.');
     }
   };
+  const handleVoid = async (saleId: string) => {
+    Alert.alert(
+      'Anular Venta',
+      '¿Está seguro de que desea anular esta venta? Esta acción no se puede deshacer.',
+      [
+        { text: 'CANCELAR', style: 'cancel' },
+        { 
+          text: 'SÍ, ANULAR', 
+          style: 'destructive',
+          onPress: async () => {
+            const result = await storageService.voidSale(saleId);
+            if (result?.success) {
+              Alert.alert('Éxito', 'La venta ha sido anulada.');
+              setSelectedSale(null);
+              loadSales();
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const renderSale = ({ item }: { item: any }) => (
     <TouchableOpacity 
-      style={[styles.saleCard, SHADOWS.small]} 
+      style={[styles.saleCard, SHADOWS.small, item.voided && { opacity: 0.6 }]} 
       onPress={() => setSelectedSale(item)}
       activeOpacity={0.7}
     >
       <View style={styles.saleHeader}>
         <View style={styles.idBox}>
-          <Ionicons name="receipt-outline" size={16} color={COLORS.primary} />
-          <Text style={styles.saleId}>#{item.id.slice(0, 8).toUpperCase()}</Text>
+          <Ionicons name="receipt-outline" size={16} color={item.voided ? COLORS.danger : COLORS.primary} />
+          <Text style={[styles.saleId, item.voided && { textDecorationLine: 'line-through' }]}>
+            #{item.id.slice(0, 8).toUpperCase()}
+          </Text>
         </View>
-        <View style={[styles.statusBadge, item.synced ? styles.syncedBadge : styles.pendingBadge]}>
-          <Text style={styles.statusText}>{item.synced ? 'SINCRONIZADO' : 'PENDIENTE'}</Text>
+        <View style={{ flexDirection: 'row', gap: 4 }}>
+          {item.voided && (
+            <View style={[styles.statusBadge, { backgroundColor: COLORS.danger }]}>
+              <Text style={styles.statusText}>ANULADA</Text>
+            </View>
+          )}
+          <View style={[styles.statusBadge, item.synced ? styles.syncedBadge : styles.pendingBadge]}>
+            <Text style={styles.statusText}>{item.synced ? 'SINCRONIZADO' : 'PENDIENTE'}</Text>
+          </View>
         </View>
       </View>
 
@@ -73,19 +104,12 @@ export default function SalesHistory() {
         <View style={styles.amountsRow}>
           <View style={styles.amountItem}>
             <Text style={styles.amountLabel}>Total USD</Text>
-            <Text style={styles.amountValueUsd}>${item.total_usd.toFixed(2)}</Text>
+            <Text style={[styles.amountValueUsd, item.voided && { color: COLORS.textSecondary }]}>${item.total_usd.toFixed(2)}</Text>
           </View>
           <View style={styles.amountItem}>
             <Text style={styles.amountLabel}>Total Bs.</Text>
-            <Text style={styles.amountValueBs}>{item.total_bs.toLocaleString()} Bs</Text>
+            <Text style={[styles.amountValueBs, item.voided && { color: COLORS.textSecondary }]}>{item.total_bs.toLocaleString()} Bs</Text>
           </View>
-        </View>
-
-        <View style={styles.paymentTags}>
-          {item.payments.cash_usd > 0 && <View style={styles.tag}><Text style={styles.tagText}>USD Cash</Text></View>}
-          {item.payments.cash_bs > 0 && <View style={styles.tag}><Text style={styles.tagText}>Bs Cash</Text></View>}
-          {item.payments.pos > 0 && <View style={styles.tag}><Text style={styles.tagText}>Punto</Text></View>}
-          {item.payments.transfer > 0 && <View style={styles.tag}><Text style={styles.tagText}>Pago Móvil</Text></View>}
         </View>
       </View>
     </TouchableOpacity>
@@ -141,11 +165,17 @@ export default function SalesHistory() {
             {/* Ticket Header */}
             <View style={styles.ticketHeader}>
               <View>
-                <Text style={styles.ticketTitle}>TICKET DE VENTA</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                  <Text style={styles.ticketTitle}>TICKET DE VENTA</Text>
+                  {selectedSale?.voided && (
+                    <View style={{ backgroundColor: COLORS.danger, paddingHorizontal: 8, borderRadius: 4 }}>
+                      <Text style={{ color: '#fff', fontSize: 10, fontWeight: '900' }}>ANULADA</Text>
+                    </View>
+                  )}
+                </View>
                 <Text style={styles.ticketSectionLabel}>Jornada: DISPROPAGO SALES</Text>
                 <Text style={styles.ticketSectionLabel}>Ubicación: SEDE CENTRAL</Text>
                 <Text style={styles.ticketSectionLabel}>Fecha: {selectedSale && new Date(selectedSale.timestamp).toLocaleString()}</Text>
-                <Text style={styles.ticketSectionLabel}>Método de pago: {selectedSale && Object.entries(selectedSale.payments).filter(([_,v]) => (v as number) > 0).map(([k]) => k.replace('_', ' ').toUpperCase()).join(' / ')}</Text>
                 <Text style={styles.ticketSectionLabel}>Nombre del cliente: {selectedSale?.customer.name}</Text>
                 <Text style={styles.ticketSectionLabel}>Nº Cédula del cliente: {selectedSale?.customer.cedula}</Text>
               </View>
@@ -168,7 +198,7 @@ export default function SalesHistory() {
               <ScrollView style={{ maxHeight: 250 }}>
                 {selectedSale?.items.map((item: any, idx: number) => (
                   <View key={idx} style={styles.ticketTableRow}>
-                    <Text style={[styles.ticketItemText, { flex: 2 }]}>{item.name.toUpperCase()}</Text>
+                    <Text style={[styles.ticketItemText, { flex: 2, textDecorationLine: selectedSale?.voided ? 'line-through' : 'none' }]}>{item.name.toUpperCase()}</Text>
                     <Text style={styles.ticketItemText}>{item.price.toFixed(2)}</Text>
                     <Text style={styles.ticketItemText}>{item.weight.toFixed(2)}</Text>
                     <Text style={[styles.ticketItemText, { fontWeight: 'bold' }]}>{item.total.toFixed(2)}</Text>
@@ -183,17 +213,26 @@ export default function SalesHistory() {
                 <Text style={styles.montoLabel}>MONTO PAGADO</Text>
                 <View style={styles.montoDetails}>
                   <Text style={styles.montoSubText}>USD$ {selectedSale?.payments.cash_usd.toFixed(2)}</Text>
-                  <Text style={styles.montoSubText}>COL$ 0.00</Text>
                   <Text style={styles.montoSubText}>Bs. {selectedSale?.total_bs.toFixed(2)}</Text>
                 </View>
               </View>
               <View style={styles.ticketActions}>
-                <TouchableOpacity style={[styles.ticketActionBtn, styles.printBtn]}>
-                  <Text style={styles.ticketActionText}>IMPRIMIR</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.ticketActionBtn, styles.voidBtn]} onPress={() => Alert.alert('Anular', '¿Desea anular esta venta?')}>
-                  <Text style={styles.ticketActionText}>ANULAR</Text>
-                </TouchableOpacity>
+                {!selectedSale?.voided && (
+                  <>
+                    <TouchableOpacity style={[styles.ticketActionBtn, styles.printBtn]}>
+                      <Text style={styles.ticketActionText}>RE-IMPRIMIR</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                      style={[styles.ticketActionBtn, styles.voidBtn]} 
+                      onPress={() => handleVoid(selectedSale.id)}
+                    >
+                      <Text style={styles.ticketActionText}>ANULAR</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+                {selectedSale?.voided && (
+                  <Text style={{ color: COLORS.danger, fontWeight: '900', fontSize: 16 }}>ESTA VENTA FUE ANULADA</Text>
+                )}
               </View>
             </View>
           </View>

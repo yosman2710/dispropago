@@ -51,6 +51,7 @@ export const storageService = {
         id: Date.now().toString(),
         timestamp: new Date().toISOString(),
         synced: false,
+        voided: false,
         rate_used: exchangeRateService.currentRate
       };
 
@@ -64,6 +65,27 @@ export const storageService = {
     } catch (e) {
       console.error('Error saving sale locally:', e);
       throw e;
+    }
+  },
+
+  /**
+   * Mark a sale as voided locally.
+   */
+  async voidSale(saleId: string) {
+    try {
+      const salesStr = await AsyncStorage.getItem(SALES_STORAGE_KEY);
+      if (!salesStr) return;
+      
+      const allSales = JSON.parse(salesStr);
+      const updatedSales = allSales.map((s: any) => 
+        s.id === saleId ? { ...s, voided: true, synced: false } : s
+      );
+      
+      await AsyncStorage.setItem(SALES_STORAGE_KEY, JSON.stringify(updatedSales));
+      return { success: true };
+    } catch (e) {
+      console.error('Error voiding sale:', e);
+      return { success: false, error: e };
     }
   },
 
@@ -105,7 +127,8 @@ export const storageService = {
             customer_cedula: sale.customer.cedula,
             customer_phone: sale.customer.phone,
             timestamp: sale.timestamp,
-            payment_details: sale.payments // Using JSONB if table supports it, or individual fields
+            payment_details: sale.payments,
+            status: sale.voided ? 'voided' : 'active'
           }])
           .select()
           .single();
