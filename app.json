@@ -35,7 +35,6 @@
     },
     "plugins": [
       "expo-router",
-      "./plugins/withAndroidInsecureMaven",
       [
         "expo-splash-screen",
         {
@@ -56,7 +55,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "5bba5a05-94fb-4dd1-9638-a0fc01d67242"
+        "projectId": "16bd6759-4fc8-43ce-b7a1-476c4c89d80a"
       }
     },
     "owner": "disprocar"
