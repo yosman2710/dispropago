@@ -1,24 +1,34 @@
-import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import * as NavigationBar from 'expo-navigation-bar';
 import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
+import React, { useEffect } from 'react';
+import { Platform, StatusBar as RNStatusBar } from 'react-native';
 import 'react-native-reanimated';
 
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
-
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
+  useEffect(() => {
+    if (Platform.OS === 'android') {
+      // Avoid calling NavigationBar methods if they produce warnings or are not supported
+      try {
+        NavigationBar.setVisibilityAsync('hidden');
+      } catch (e) {
+        console.log('NavigationBar warning:', e);
+      }
+    }
+    // Hide top status bar
+    RNStatusBar.setHidden(true);
+  }, []);
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+    <>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="sale" />
+        <Stack.Screen name="sales" />
+        <Stack.Screen name="buys" />
+        <Stack.Screen name="payment" />
+        <Stack.Screen name="orders" />
+        <Stack.Screen name="modal" />
       </Stack>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+    </>
   );
 }
