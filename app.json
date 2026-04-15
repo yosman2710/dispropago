@@ -35,6 +35,7 @@
     },
     "plugins": [
       "expo-router",
+      "react-native-ble-manager",
       [
         "expo-splash-screen",
         {
@@ -46,7 +47,9 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "react-native-ble-manager",
+      "@config-plugins/detox"
     ],
     "experiments": {
       "typedRoutes": true,

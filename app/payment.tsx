@@ -111,8 +111,8 @@ export default function PaymentScreen() {
               timestamp: savedSale.timestamp,
               customer: saleData.customer,
               items: saleData.items,
-              totalUsd: saleData.total_usd,
-              totalBs: saleData.total_bs,
+              total_usd: saleData.total_usd,
+              total_bs: saleData.total_bs,
               payments: saleData.payments,
               rate: rate
             });
