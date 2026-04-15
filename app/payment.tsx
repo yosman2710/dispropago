@@ -106,24 +106,32 @@ export default function PaymentScreen() {
         {
           text: 'SÍ, IMPRIMIR',
           onPress: async () => {
-            const printSuccess = await printerService.printReceipt({
-              id: savedSale.id,
-              timestamp: savedSale.timestamp,
-              customer: saleData.customer,
-              items: saleData.items,
-              total_usd: saleData.total_usd,
-              total_bs: saleData.total_bs,
-              payments: saleData.payments,
-              rate: rate
-            });
+            try {
+              const printSuccess = await printerService.printReceipt({
+                id: savedSale.id,
+                timestamp: savedSale.timestamp,
+                customer: saleData.customer,
+                items: saleData.items,
+                total_usd: saleData.total_usd,
+                total_bs: saleData.total_bs,
+                payments: saleData.payments,
+                rate: rate
+              });
 
-            if (printSuccess) {
-              Alert.alert('¡Éxito!', 'Factura impresa correctamente.', [{ text: 'OK', onPress: () => finishFlow() }]);
-            } else {
+              if (printSuccess) {
+                Alert.alert('¡Éxito!', 'Factura impresa correctamente.', [{ text: 'OK', onPress: () => finishFlow() }]);
+              } else {
+                Alert.alert(
+                  'Problema de Impresión',
+                  'No se pudo conectar con la impresora. Verifique que esté encendida y el Bluetooth activado.',
+                  [{ text: 'ENTENDIDO', onPress: () => finishFlow() }]
+                );
+              }
+            } catch (error: any) {
               Alert.alert(
                 'Problema de Impresión',
-                'No se pudo conectar con la impresora. Verifique que esté encendida y el Bluetooth activado.',
-                [{ text: 'ENTENDIDO', onPress: () => finishFlow() }]
+                error.message || 'Ocurrió un error al intentar imprimir.',
+                [{ text: 'ENTENDIDO, FINALIZAR', onPress: () => finishFlow() }]
               );
             }
           }

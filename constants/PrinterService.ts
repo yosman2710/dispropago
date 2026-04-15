@@ -1,5 +1,6 @@
 import { PermissionsAndroid, Platform } from 'react-native';
 import ThermalPrinter from 'react-native-thermal-printer';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
  * Service to handle thermal printing using react-native-thermal-printer
@@ -9,27 +10,42 @@ export const PrinterService = {
   connectedDevice: null as string | null,
 
   /**
-   * Request Bluetooth permissions for Android
+   * Request Bluetooth permissions for Android and load saved printer
    */
   async init() {
     if (this.isInitialized) return true;
 
     try {
-      if (Platform.OS === 'android' && Platform.Version >= 23) {
-        const granted = await PermissionsAndroid.requestMultiple([
-          PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
-          PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
-        ]);
+      if (Platform.OS === 'android') {
+        const apiLevel = Platform.Version as number;
+        const permissions = apiLevel >= 31
+          ? [
+            PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
+            PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+            PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          ]
+          : [PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION];
+
+        const granted = await PermissionsAndroid.requestMultiple(permissions);
         
         const allGranted = Object.values(granted).every(
           (status) => status === PermissionsAndroid.RESULTS.GRANTED
         );
         
         if (!allGranted) {
-          console.warn('Permissions not fully granted');
+          console.warn('Permisos de Bluetooth no fueron concedidos por completo.');
         }
       }
+      
+      try {
+        const savedMac = await AsyncStorage.getItem('printer_mac');
+        if (savedMac) {
+          this.connectedDevice = savedMac;
+        }
+      } catch (e) {
+        console.error('Error loading mac address:', e);
+      }
+      
       this.isInitialized = true;
       return true;
     } catch (error) {
@@ -42,8 +58,12 @@ export const PrinterService = {
    * Save the printer address for subsequent print jobs
    */
   async connect(deviceId: string) {
-    // For this library, we just store the address.
     this.connectedDevice = deviceId;
+    try {
+      await AsyncStorage.setItem('printer_mac', deviceId);
+    } catch (e) {
+      console.error('Error saving mac address:', e);
+    }
     return true;
   },
 
@@ -51,14 +71,11 @@ export const PrinterService = {
    * Print a sale receipt
    */
   async printReceipt(sale: any) {
-    if (!this.connectedDevice) {
-      // For demo purposes, if no device is connected, we might want to fail 
-      // or use a default one, but here we enforce connection.
-      await this.init();
-    }
+    const hasPerms = await this.init();
+    if (!hasPerms) console.warn('Possible permission issues');
 
     if (!this.connectedDevice) {
-      throw new Error('No se ha configurado ninguna impresora');
+      throw new Error('No se ha configurado ninguna impresora. Ve a los ajustes para seleccionar una.');
     }
 
     try {
@@ -73,12 +90,14 @@ export const PrinterService = {
       payload += '[C]--------------------------------\n';
 
       // Items table
-      sale.items.forEach((item: any) => {
-        const name = item.name.substring(0, 15).padEnd(16);
-        const qty = (item.weight || 0).toFixed(2).toString().padStart(5);
-        const tot = (item.total || 0).toFixed(2).toString().padStart(9);
-        payload += `[L]${name}${qty}${tot}\n`;
-      });
+      if (sale.items && Array.isArray(sale.items)) {
+        sale.items.forEach((item: any) => {
+          const name = (item.name || '').substring(0, 15).padEnd(16);
+          const qty = (item.weight || 0).toFixed(2).toString().padStart(5);
+          const tot = (item.total || 0).toFixed(2).toString().padStart(9);
+          payload += `[L]${name}${qty}${tot}\n`;
+        });
+      }
 
       payload += '[C]--------------------------------\n';
       payload += '[R]TOTAL BS:\n';
@@ -91,7 +110,7 @@ export const PrinterService = {
 
       await ThermalPrinter.printBluetooth({
         payload,
-        macAddress: this.connectedDevice,
+        macAddress: this.connectedDevice.toUpperCase(),
         printerWidthMM: 58,
       });
 

@@ -41,9 +41,14 @@ export default function Dashboard() {
               <Text style={styles.welcomeText}>DisproPago POS</Text>
               <Text style={styles.userRole}>Cajero de Turno</Text>
             </View>
-            <View style={styles.tasaChip}>
-              <Text style={styles.tasaLabel}>TASA BCV</Text>
-              <Text style={styles.tasaValue}>{rate.toFixed(2)} Bs</Text>
+            <View style={styles.headerRight}>
+              <View style={styles.tasaChip}>
+                <Text style={styles.tasaLabel}>TASA BCV</Text>
+                <Text style={styles.tasaValue}>{rate.toFixed(2)} Bs</Text>
+              </View>
+              <TouchableOpacity style={styles.settingsBtn} onPress={() => router.push('/printer_settings')}>
+                <Ionicons name="print-outline" size={24} color={COLORS.white} />
+              </TouchableOpacity>
             </View>
           </View>
         </SafeAreaView>
@@ -111,6 +116,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING.md,
     paddingVertical: 8,
     borderRadius: 15,
+    alignItems: 'center',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  settingsBtn: {
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
     alignItems: 'center',
   },
   tasaLabel: {

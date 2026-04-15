@@ -23,7 +23,10 @@
         "BLUETOOTH_ADMIN",
         "BLUETOOTH_CONNECT",
         "BLUETOOTH_SCAN",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "android.permission.BLUETOOTH",
+        "android.permission.BLUETOOTH_ADMIN",
+        "android.permission.BLUETOOTH_CONNECT"
       ],
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
@@ -61,7 +64,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "16bd6759-4fc8-43ce-b7a1-476c4c89d80a"
+        "projectId": "9d607529-a43e-45f9-ac93-dbd0577010f5"
       }
     },
     "owner": "disprocar"
