@@ -71,7 +71,6 @@ export const storageService = {
       
       return newSale;
     } catch (e) {
-      console.error('Error saving sale locally:', e);
       throw e;
     }
   },
@@ -167,12 +166,10 @@ export const storageService = {
         syncCount++;
       }
 
-      // Save updated local list
       await AsyncStorage.setItem(SALES_STORAGE_KEY, JSON.stringify(allSales));
 
       return { success: true, count: syncCount };
     } catch (e) {
-      console.error('Fatal sync error:', e);
       return { success: false, error: e };
     }
   }

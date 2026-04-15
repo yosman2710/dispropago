@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
-import { Dimensions, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 const { width } = Dimensions.get('window');
 const isTablet = width > 768;
@@ -49,7 +49,7 @@ export default function Dashboard() {
         </SafeAreaView>
       </LinearGradient>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <View style={styles.mainContent}>
         <View style={styles.grid}>
           {menuItems.map((item) => (
             <TouchableOpacity
@@ -59,41 +59,23 @@ export default function Dashboard() {
               onPress={() => router.push(item.route as any)}
             >
               <LinearGradient
-                colors={['#FFFFFF', '#F8FAFF']}
+                colors={['#FFFFFF', '#F9FBFF']}
                 style={styles.cardGradient}
               >
                 <View style={[styles.iconBox, { backgroundColor: item.color }]}>
-                  <Ionicons name={item.icon as any} size={32} color={COLORS.white} />
+                  <Ionicons name={item.icon as any} size={30} color={COLORS.white} />
                 </View>
                 <View style={styles.cardText}>
                   <Text style={styles.cardTitle}>{item.title}</Text>
                   <Text style={styles.cardSub}>{item.sub}</Text>
                 </View>
-                <Ionicons name="chevron-forward" size={24} color={COLORS.border} />
+                <Ionicons name="chevron-forward" size={20} color={COLORS.border} />
               </LinearGradient>
             </TouchableOpacity>
           ))}
         </View>
+      </View>
 
-        {/* Quick Stats or Footer */}
-        <View style={styles.infoSection}>
-          <Text style={styles.sectionTitle}>Resumen Diario</Text>
-          <View style={styles.statsRow}>
-            <View style={[styles.statItem, SHADOWS.small]}>
-              <Text style={styles.statLabel}>Ventas Hoy</Text>
-              <Text style={styles.statValue}>12</Text>
-            </View>
-            <View style={[styles.statItem, SHADOWS.small]}>
-              <Text style={styles.statLabel}>Total USD</Text>
-              <Text style={styles.statValue}>$450.20</Text>
-            </View>
-            <View style={[styles.statItem, SHADOWS.small]}>
-              <Text style={styles.statLabel}>Total Bs.</Text>
-              <Text style={styles.statValue}>21,540</Text>
-            </View>
-          </View>
-        </View>
-      </ScrollView>
     </View>
   );
 }
@@ -104,9 +86,9 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.background,
   },
   hero: {
-    paddingBottom: SPACING.xxl,
-    borderBottomLeftRadius: 40,
-    borderBottomRightRadius: 40,
+    paddingBottom: SPACING.xl,
+    borderBottomLeftRadius: 32,
+    borderBottomRightRadius: 32,
   },
   header: {
     flexDirection: 'row',
@@ -142,21 +124,21 @@ const styles = StyleSheet.create({
     color: COLORS.white,
     fontWeight: 'bold',
   },
-  scrollContent: {
-    paddingTop: 60,
+  mainContent: {
+    flex: 1,
+    justifyContent: 'center',
     paddingHorizontal: SPACING.xl,
-    paddingBottom: SPACING.xxl,
+    paddingBottom: SPACING.lg,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginTop: -30,
+    gap: SPACING.lg,
   },
   menuCard: {
-    width: isTablet ? '48%' : '100%',
-    height: 120,
-    marginBottom: SPACING.lg,
+    width: isTablet ? '48.5%' : '100%',
+    height: isTablet ? 140 : 120,
     borderRadius: 24,
     overflow: 'hidden',
   },
@@ -169,14 +151,14 @@ const styles = StyleSheet.create({
   iconBox: {
     width: 64,
     height: 64,
-    borderRadius: 20,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
     ...SHADOWS.small,
   },
   cardText: {
     flex: 1,
-    marginLeft: SPACING.lg,
+    marginLeft: SPACING.md,
   },
   cardTitle: {
     fontSize: 18,
@@ -184,7 +166,7 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   cardSub: {
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.textSecondary,
     marginTop: 2,
   },
