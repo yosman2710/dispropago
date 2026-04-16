@@ -15,9 +15,12 @@ export default function Dashboard() {
 
   useEffect(() => {
     const fetchRate = async () => {
+      const cachedRate = await exchangeRateService.loadStoredRate();
+      setRate(cachedRate);
       await exchangeRateService.updateRate();
       setRate(exchangeRateService.currentRate);
     };
+
     fetchRate();
   }, []);
 

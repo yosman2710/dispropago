@@ -19,9 +19,30 @@ export const mockProducts = [
   { id: '6', name: 'Osobuco', price_usd: 4.39, category: 'Carnes', image: require('../assets/products/osobuco.jpg') },
 ];
 
-export const exchangeRateService = {
-  currentRate: 47.50, // Default fallback
+const RATE_STORAGE_KEY = '@pos_exchange_rate';
 
+export const exchangeRateService = {
+  currentRate: 47.50, // Valor inicial mientras carga el de AsyncStorage
+
+  /**
+   * Carga la tasa guardada localmente al abrir la app
+   */
+  async loadStoredRate() {
+    try {
+      const storedRate = await AsyncStorage.getItem(RATE_STORAGE_KEY);
+      if (storedRate !== null) {
+        this.currentRate = parseFloat(storedRate);
+        console.log('Tasa cargada desde almacenamiento:', this.currentRate);
+      }
+    } catch (error) {
+      console.error('Error cargando tasa local:', error);
+    }
+    return this.currentRate;
+  },
+
+  /**
+   * Intenta obtener la tasa de internet y la guarda localmente
+   */
   async updateRate() {
     try {
       const response = await fetch('https://ve.dolarapi.com/v1/dolares/oficial');
@@ -29,11 +50,18 @@ export const exchangeRateService = {
         const data = await response.json();
         if (data && data.promedio) {
           this.currentRate = data.promedio;
+
+          // GUARDAR EN ASYNC STORAGE
+          await AsyncStorage.setItem(RATE_STORAGE_KEY, this.currentRate.toString());
+
+          console.log('Tasa actualizada y guardada:', this.currentRate);
           return this.currentRate;
         }
       }
     } catch (error) {
-      console.log('Using last known rate:', this.currentRate);
+      // Si falla el internet, intenta cargar la que ya teníamos guardada
+      console.log('Sin internet o error. Usando tasa persistente:', this.currentRate);
+      await this.loadStoredRate();
     }
     return this.currentRate;
   }
@@ -41,7 +69,7 @@ export const exchangeRateService = {
 
 // Helper to generate a valid UUID v4 string
 const generateUUID = () => {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
     const r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
     return v.toString(16);
   });
@@ -78,10 +106,10 @@ export const storageService = {
 
       const existingSalesStr = await AsyncStorage.getItem(SALES_STORAGE_KEY);
       const existingSales = existingSalesStr ? JSON.parse(existingSalesStr) : [];
-      
+
       const updatedSales = [...existingSales, newSale];
       await AsyncStorage.setItem(SALES_STORAGE_KEY, JSON.stringify(updatedSales));
-      
+
       return newSale;
     } catch (e) {
       throw e;
@@ -95,12 +123,12 @@ export const storageService = {
     try {
       const salesStr = await AsyncStorage.getItem(SALES_STORAGE_KEY);
       if (!salesStr) return;
-      
+
       const allSales = JSON.parse(salesStr);
-      const updatedSales = allSales.map((s: any) => 
+      const updatedSales = allSales.map((s: any) =>
         s.id === saleId ? { ...s, voided: true, synced: false } : s
       );
-      
+
       await AsyncStorage.setItem(SALES_STORAGE_KEY, JSON.stringify(updatedSales));
       return { success: true };
     } catch (e) {
@@ -127,19 +155,19 @@ export const storageService = {
       // 1. Check for internet connectivity first
       const hasInternet = await checkInternet();
       if (!hasInternet) {
-        return { 
-          success: false, 
-          errorType: 'NO_INTERNET', 
-          message: 'Sin conexión a internet. Revisa tu red y vuelve a intentarlo.' 
+        return {
+          success: false,
+          errorType: 'NO_INTERNET',
+          message: 'Sin conexión a internet. Revisa tu red y vuelve a intentarlo.'
         };
       }
 
       const salesStr = await AsyncStorage.getItem(SALES_STORAGE_KEY);
       if (!salesStr) return { success: true, count: 0 };
-      
+
       const allSales = JSON.parse(salesStr);
       const unsyncedSales = allSales.filter((s: any) => !s.synced);
-      
+
       if (unsyncedSales.length === 0) return { success: true, count: 0 };
 
       let syncCount = 0;
@@ -198,10 +226,10 @@ export const storageService = {
 
       return { success: true, count: syncCount };
     } catch (e) {
-      return { 
-        success: false, 
-        error: e, 
-        message: 'Ocurrió un problema inesperado al sincronizar con el servidor.' 
+      return {
+        success: false,
+        error: e,
+        message: 'Ocurrió un problema inesperado al sincronizar con el servidor.'
       };
     }
   }
