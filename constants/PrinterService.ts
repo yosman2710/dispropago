@@ -1,6 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { PermissionsAndroid, Platform } from 'react-native';
 import ThermalPrinter from 'react-native-thermal-printer';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
 /**
  * Service to handle thermal printing using react-native-thermal-printer
@@ -27,16 +27,16 @@ export const PrinterService = {
           : [PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION];
 
         const granted = await PermissionsAndroid.requestMultiple(permissions);
-        
+
         const allGranted = Object.values(granted).every(
           (status) => status === PermissionsAndroid.RESULTS.GRANTED
         );
-        
+
         if (!allGranted) {
           console.warn('Permisos de Bluetooth no fueron concedidos por completo.');
         }
       }
-      
+
       try {
         const savedMac = await AsyncStorage.getItem('printer_mac');
         if (savedMac) {
@@ -45,7 +45,7 @@ export const PrinterService = {
       } catch (e) {
         console.error('Error loading mac address:', e);
       }
-      
+
       this.isInitialized = true;
       return true;
     } catch (error) {
@@ -79,33 +79,38 @@ export const PrinterService = {
     }
 
     try {
+      const sanitize = (text: string) => {
+        return text ? text.normalize('NFD').replace(/[\u0300-\u036f]/g, '') : '';
+      };
+
       // Build the ticket payload using tags supported by react-native-thermal-printer
       // Supported tags: [C] Center, [L] Left, [R] Right, <b> Bold, <font size='big'> Big Font
       let payload = '[C]<b>DISPROPAGO POS</b>\n';
-      payload += '[C]RIF: J-12345678-9\n';
-      payload += '[C]--------------------------------\n';
-      payload += `[L]FECHA: ${new Date(sale.timestamp).toLocaleString()}\n`;
-      payload += `[L]CLIENTE: ${sale.customer.name}\n`;
+      payload += '[C]RIF: J-30931874-8\n';
+      payload += '[C]-------------------------------\n';
+      payload += `[L]FECHA: ${new Date(sale.timestamp).toLocaleString().replace(',', '')}\n`;
+      payload += `[L]CLIENTE: ${sanitize(sale.customer.name)}\n`;
       payload += `[L]CEDULA: ${sale.customer.cedula}\n`;
-      payload += '[C]--------------------------------\n';
+      payload += '[C]-------------------------------\n';
 
-      // Items table
+      // Items table (Max 31 chars per line)
       if (sale.items && Array.isArray(sale.items)) {
         sale.items.forEach((item: any) => {
-          const name = (item.name || '').substring(0, 15).padEnd(16);
+          const rawName = sanitize(item.name || '').substring(0, 15);
+          const name = rawName.padEnd(16);
           const qty = (item.weight || 0).toFixed(2).toString().padStart(5);
           const tot = (item.total || 0).toFixed(2).toString().padStart(9);
           payload += `[L]${name}${qty}${tot}\n`;
         });
       }
 
-      payload += '[C]--------------------------------\n';
+      payload += '[C]-------------------------------\n';
       payload += '[R]TOTAL BS:\n';
       payload += `[R]<font size='big'>${(sale.total_bs || 0).toFixed(2)}</font>\n`;
       payload += `[R]TASA: ${sale.rate || 0} Bs/$\n`;
       payload += `[R]TOTAL USD: $${(sale.total_usd || 0).toFixed(2)}\n`;
       payload += '[L]\n';
-      payload += '[C]<b>¡GRACIAS POR SU COMPRA!</b>\n';
+      payload += '[C]<b>GRACIAS POR SU COMPRA!</b>\n';
       payload += '\n\n\n'; // Extra space for manual tearing
 
       // Populate the internal btDevicesList cache of the thermal printer module
@@ -120,6 +125,7 @@ export const PrinterService = {
         payload,
         macAddress: this.connectedDevice.toUpperCase(),
         printerWidthMM: 58,
+        printerNbrCharactersPerLine: 32, // Critical for 58mm POS printers to avoid crazy alignment
       });
 
       return true;
