@@ -1,3 +1,4 @@
+import { printerService } from '@/constants/PrinterService';
 import { storageService } from '@/constants/SupabaseSim';
 import { COLORS, SHADOWS, SPACING } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -170,7 +171,22 @@ export default function SalesReport() {
         >
           <Text style={styles.footerBtnText}>{exporting ? 'EXPORTANDO...' : 'EXPORTAR'}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.footerBtn, styles.closeBtn]} onPress={() => Alert.alert('Cierre', 'Cierre de turno realizado.')}>
+        <TouchableOpacity 
+          style={[styles.footerBtn, styles.closeBtn]} 
+          onPress={() => {
+            Alert.alert('Cierre de Turno', '¿Seguro que desea imprimir el cierre de caja (Z)?', [
+              { text: 'CANCELAR', style: 'cancel' },
+              { text: 'IMPRIMIR', onPress: async () => {
+                try {
+                  await printerService.printZReceipt(totals);
+                  Alert.alert('Éxito', 'Cierre impreso correctamente.');
+                } catch (e: any) {
+                  Alert.alert('Error', e.message || 'No se pudo imprimir el cierre.');
+                }
+              }}
+            ]);
+          }}
+        >
           <Text style={styles.footerBtnText}>CIERRE</Text>
         </TouchableOpacity>
         <TouchableOpacity style={[styles.footerBtn, styles.exitBtn]} onPress={() => router.back()}>
