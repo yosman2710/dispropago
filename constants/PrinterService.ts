@@ -108,6 +108,14 @@ export const PrinterService = {
       payload += '[C]<b>¡GRACIAS POR SU COMPRA!</b>\n';
       payload += '\n\n\n'; // Extra space for manual tearing
 
+      // Populate the internal btDevicesList cache of the thermal printer module
+      // If we don't do this, printBluetooth will fail with "Bluetooth Device Not Found"
+      try {
+        await ThermalPrinter.getBluetoothDeviceList();
+      } catch (err) {
+        console.warn('Alerta al cargar lista interna de dispositivos bluetooth:', err);
+      }
+
       await ThermalPrinter.printBluetooth({
         payload,
         macAddress: this.connectedDevice.toUpperCase(),
