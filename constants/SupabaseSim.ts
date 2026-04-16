@@ -157,6 +157,11 @@ export const storageService = {
             customer_cedula: sale.customer.cedula,
             customer_phone: sale.customer.phone,
             created_at: sale.timestamp,
+            payment_cash_usd: sale.payments?.cash_usd ? parseFloat(sale.payments.cash_usd) : 0,
+            payment_cash_bs: sale.payments?.cash_bs ? parseFloat(sale.payments.cash_bs) : 0,
+            payment_pos_bs: sale.payments?.pos ? parseFloat(sale.payments.pos) : 0,
+            payment_transfer_bs: sale.payments?.transfer ? parseFloat(sale.payments.transfer) : 0,
+            receipt_number: sale.id.slice(0, 8).toUpperCase(),
             payment_details: sale.payments,
             status: sale.voided ? 'voided' : 'active'
           }]);

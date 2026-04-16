@@ -13,15 +13,18 @@ CREATE TABLE public.sales (
     id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
     created_at timestamp with time zone DEFAULT now(),
     customer_name text NOT NULL,
-    customer_id text NOT NULL, -- Cedula or RIF
+    customer_cedula text NOT NULL, -- Cedula or RIF
     customer_phone text,
     total_usd numeric(12,2) NOT NULL,
     total_bs numeric(12,2) NOT NULL,
-    exchange_rate numeric(12,2) NOT NULL,
+    rate numeric(12,2) NOT NULL,
     payment_cash_usd numeric(12,2) DEFAULT 0,
     payment_cash_bs numeric(12,2) DEFAULT 0,
     payment_pos_bs numeric(12,2) DEFAULT 0,
     payment_transfer_bs numeric(12,2) DEFAULT 0,
+    receipt_number text,
+    status text,
+    payment_details jsonb,
     synced_at timestamp with time zone DEFAULT now()
 );
 

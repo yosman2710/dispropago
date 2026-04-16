@@ -1,3 +1,4 @@
+import { printerService } from '@/constants/PrinterService';
 import { storageService } from '@/constants/SupabaseSim';
 import { COLORS, SHADOWS, SPACING } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
@@ -61,6 +62,16 @@ export default function SalesHistory() {
       ]
     );
   };
+
+  const handleReprint = async (sale: any) => {
+    try {
+      await printerService.printReceipt(sale);
+      Alert.alert('Éxito', 'Re-impresión enviada correctamente.');
+    } catch (e: any) {
+      Alert.alert('Error', e.message || 'No se pudo enviar el comando a la impresora.');
+    }
+  };
+
 
   const renderSale = ({ item }: { item: any }) => (
     <TouchableOpacity
@@ -209,7 +220,10 @@ export default function SalesHistory() {
               <View style={styles.ticketActions}>
                 {!selectedSale?.voided && (
                   <>
-                    <TouchableOpacity style={[styles.ticketActionBtn, styles.printBtn]}>
+                    <TouchableOpacity 
+                      style={[styles.ticketActionBtn, styles.printBtn]}
+                      onPress={() => handleReprint(selectedSale)}
+                    >
                       <Text style={styles.ticketActionText}>RE-IMPRIMIR</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
