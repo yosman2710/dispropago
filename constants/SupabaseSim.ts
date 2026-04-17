@@ -200,12 +200,13 @@ export const storageService = {
       if (unsyncedSales.length === 0) return { success: true, count: 0 };
 
       let syncCount = 0;
+      let lastError: any = null;
 
       for (const sale of unsyncedSales) {
-        // 1. Upsert into 'sales' table (Updates if ID exists, inserts if not)
+        // Usamos insert en lugar de upsert porque RLS solo permite INSERT actualmente
         const { error: saleError } = await supabase
           .from('sales')
-          .upsert([{
+          .insert([{
             id: sale.id, // Primary key
             total_usd: sale.total_usd,
             total_bs: sale.total_bs,
@@ -226,7 +227,13 @@ export const storageService = {
 
         if (saleError) {
           console.error('Error syncing sale metadata:', saleError);
-          continue; // Skip this one for now
+          // Si el error es de llave duplicada (23505), significa que ya se había subido
+          if (saleError.code === '23505') {
+            console.log('La venta ya existía en la BD, marcando como sincronizada');
+          } else {
+            lastError = saleError;
+            continue; // Skip this one for now but report error later
+          }
         }
 
         // 2. Insert into 'sale_items' table
@@ -242,8 +249,11 @@ export const storageService = {
           .from('sale_items')
           .insert(itemsToInsert);
 
-        if (itemsError) {
+        if (itemsError && itemsError.code !== '23505') {
           console.error('Error syncing sale items:', itemsError);
+          lastError = itemsError;
+          // Even if items fail, if sales main row succeeded we might want to still mark it or retry it
+          // But usually we should rollback. For now we will just report it.
           continue;
         }
 
@@ -254,7 +264,11 @@ export const storageService = {
 
       await AsyncStorage.setItem(SALES_STORAGE_KEY, JSON.stringify(allSales));
 
-      return { success: true, count: syncCount };
+      if (lastError && syncCount === 0) {
+        return { success: false, message: `Error de Supabase: ${lastError.message || JSON.stringify(lastError)}` };
+      }
+
+      return { success: true, count: syncCount, warning: lastError ? 'Algunas ventas fallaron' : null };
     } catch (e) {
       return {
         success: false,
