@@ -87,8 +87,14 @@ export const PrinterService = {
       // Supported tags: [C] Center, [L] Left, [R] Right, <b> Bold, <font size='big'> Big Font
       let payload = '[C]<font size=\'big\'><b>DISPROPAGO POS</b></font>\n';
       payload += '[C]RIF: J-30931874-8\n';
+      if (sale.receipt_number) {
+        payload += `[C]RECIBO: ${sale.receipt_number}\n`;
+      }
       payload += '[C]-------------------------------\n';
       payload += `[L]FECHA: ${new Date(sale.timestamp).toLocaleString().replace(',', '')}\n`;
+      if (sale.cashier_name) {
+        payload += `[L]CAJERO: ${sanitize(sale.cashier_name)}\n`;
+      }
       payload += `[L]CLIENTE: ${sanitize(sale.customer.name)}\n`;
       payload += `[L]CEDULA: ${sale.customer.cedula}\n`;
       payload += '[C]-------------------------------\n';
@@ -171,7 +177,11 @@ export const PrinterService = {
       
       let payload = '[C]<font size=\'big\'><b>RESUMEN DE CAJA</b></font>\n';
       payload += '[L]Jornada: TURNO ACTUAL\n';
-      payload += '[L]Cajero: CAJA PRINCIPAL\n';
+      if (totals.cashier_name) {
+        payload += `[L]Cajero: ${totals.cashier_name}\n`;
+      } else {
+        payload += '[L]Cajero: CAJA PRINCIPAL\n';
+      }
       payload += `[C]${dateStr} - ${timeStr}\n`;
       payload += '[C]-------------------------------\n';
       

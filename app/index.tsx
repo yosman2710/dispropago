@@ -1,4 +1,4 @@
-import { exchangeRateService } from '@/constants/SupabaseSim';
+import { authService, exchangeRateService } from '@/constants/SupabaseSim';
 import { COLORS, SHADOWS, SPACING } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,17 +12,30 @@ const isTablet = width > 768;
 export default function Dashboard() {
   const router = useRouter();
   const [rate, setRate] = React.useState(exchangeRateService.currentRate);
+  const [cashierName, setCashierName] = React.useState('Cajero de Turno');
 
   useEffect(() => {
-    const fetchRate = async () => {
+    const checkAuthAndRate = async () => {
+      const activeCashier = await authService.getActiveCashier();
+      if (!activeCashier) {
+        router.replace('/login');
+        return;
+      }
+      setCashierName(activeCashier);
+
       const cachedRate = await exchangeRateService.loadStoredRate();
       setRate(cachedRate);
       await exchangeRateService.updateRate();
       setRate(exchangeRateService.currentRate);
     };
 
-    fetchRate();
+    checkAuthAndRate();
   }, []);
+
+  const handleLogout = async () => {
+    await authService.logout();
+    router.replace('/login');
+  };
 
   const menuItems = [
     { id: '1', title: 'NUEVA COMPRA', sub: 'Iniciar venta rápida', icon: 'cart', color: COLORS.primary, route: '/sale' },
@@ -42,9 +55,12 @@ export default function Dashboard() {
           <View style={styles.header}>
             <View>
               <Text style={styles.welcomeText}>DisproPago POS</Text>
-              <Text style={styles.userRole}>Cajero de Turno</Text>
+              <Text style={styles.userRole}>{cashierName}</Text>
             </View>
             <View style={styles.headerRight}>
+              <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+                <Ionicons name="log-out-outline" size={24} color={COLORS.white} />
+              </TouchableOpacity>
               <View style={styles.tasaChip}>
                 <Text style={styles.tasaLabel}>TASA BCV</Text>
                 <Text style={styles.tasaValue}>{rate.toFixed(2)} Bs</Text>
@@ -125,6 +141,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING.md,
+  },
+  logoutBtn: {
+    backgroundColor: 'rgba(231, 76, 60, 0.3)', // Slight red tint for logout
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   settingsBtn: {
     backgroundColor: 'rgba(0,0,0,0.3)',

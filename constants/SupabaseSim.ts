@@ -75,6 +75,30 @@ const generateUUID = () => {
   });
 };
 
+const AUTH_STORAGE_KEY = '@pos_active_cashier';
+
+export const authService = {
+  async getActiveCashier() {
+    return await AsyncStorage.getItem(AUTH_STORAGE_KEY);
+  },
+  async setActiveCashier(name: string) {
+    await AsyncStorage.setItem(AUTH_STORAGE_KEY, name);
+  },
+  async logout() {
+    await AsyncStorage.removeItem(AUTH_STORAGE_KEY);
+  }
+};
+
+const getNextReceiptNumber = async (cashierName: string) => {
+  const prefix = cashierName ? cashierName.replace(/\s+/g, '').substring(0, 5).toUpperCase() : 'POS';
+  const seqKey = `@pos_receipt_seq_${prefix}`;
+  let seqStr = await AsyncStorage.getItem(seqKey);
+  let seq = seqStr ? parseInt(seqStr, 10) : 0;
+  seq++;
+  await AsyncStorage.setItem(seqKey, seq.toString());
+  return `${prefix}-${seq.toString().padStart(5, '0')}`;
+};
+
 /**
  * Helper to check for real internet connectivity
  */
@@ -95,9 +119,14 @@ export const storageService = {
    */
   async saveSale(sale: any) {
     try {
+      const cashierName = await authService.getActiveCashier() || 'Desconocido';
+      const receipt_number = await getNextReceiptNumber(cashierName);
+
       const newSale = {
         ...sale,
-        id: generateUUID(), // Now compatible with Supabase UUID type
+        id: generateUUID(),
+        receipt_number,
+        cashier_name: cashierName,
         timestamp: new Date().toISOString(),
         synced: false,
         voided: false,
@@ -189,7 +218,8 @@ export const storageService = {
             payment_cash_bs: sale.payments?.cash_bs ? parseFloat(sale.payments.cash_bs) : 0,
             payment_pos_bs: sale.payments?.pos ? parseFloat(sale.payments.pos) : 0,
             payment_transfer_bs: sale.payments?.transfer ? parseFloat(sale.payments.transfer) : 0,
-            receipt_number: sale.id.slice(0, 8).toUpperCase(),
+            receipt_number: sale.receipt_number || sale.id.slice(0, 8).toUpperCase(),
+            cashier_name: sale.cashier_name,
             payment_details: sale.payments,
             status: sale.voided ? 'voided' : 'active'
           }]);

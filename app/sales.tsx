@@ -1,5 +1,5 @@
 import { printerService } from '@/constants/PrinterService';
-import { storageService } from '@/constants/SupabaseSim';
+import { authService, storageService } from '@/constants/SupabaseSim';
 import { COLORS, SHADOWS, SPACING } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -12,10 +12,17 @@ export default function SalesReport() {
   const router = useRouter();
   const [sales, setSales] = useState<any[]>([]);
   const [exporting, setExporting] = useState(false);
+  const [cashierName, setCashierName] = useState('CAJA PRINCIPAL');
 
   useEffect(() => {
     loadSales();
+    loadCashier();
   }, []);
+
+  const loadCashier = async () => {
+    const name = await authService.getActiveCashier();
+    if (name) setCashierName(name);
+  };
 
   const loadSales = async () => {
     const data = await storageService.getLocalSales();
@@ -58,9 +65,10 @@ export default function SalesReport() {
       cashUsd: 0,
       totalBs: 0,
       numSales: 0,
+      cashier_name: cashierName,
       itemsDetail: [] as any[]
     });
-  }, [sales]);
+  }, [sales, cashierName]);
 
   const numItemsAggregated = totals.itemsDetail.length;
 
