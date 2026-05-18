@@ -1,10 +1,12 @@
-import { exchangeRateService, mockProducts } from '@/constants/SupabaseSim';
+import { exchangeRateService, mockProducts, productsService } from '@/constants/SupabaseSim';
 import { COLORS, SHADOWS, SPACING } from '@/constants/theme';
+import { CustomAlert } from '@/components/CustomAlert';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Dimensions, FlatList, Image, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Dimensions, FlatList, StatusBar, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
 const { width } = Dimensions.get('window');
 const isTablet = width > 768;
@@ -13,21 +15,67 @@ export default function ProductsScreen() {
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [rate, setRate] = useState(exchangeRateService.currentRate);
+  const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadProducts = async () => {
+    setLoading(true);
+    const data = await productsService.getCachedProducts();
+    setProducts(data);
+    setLoading(false);
+  };
+
+  const handleSyncCatalog = async () => {
+    setLoading(true);
+    const result = await productsService.updateCatalog();
+    if (result.success) {
+      setProducts(result.data || []);
+      CustomAlert.show({
+        title: 'Catálogo Sincronizado',
+        message: `Se han descargado y guardado localmente ${result.count || 0} productos. Ya puedes seguir usando el catálogo sin internet.`,
+        type: 'success',
+      });
+    } else {
+      const data = await productsService.getCachedProducts();
+      setProducts(data);
+      CustomAlert.show({
+        title: 'Sincronización Fallida',
+        message: result.message || 'No se pudo conectar con el servidor. Se mantendrá el catálogo guardado actual.',
+        type: 'warning',
+      });
+    }
+    setLoading(false);
+  };
 
   useEffect(() => {
     // Ensure we have the latest rate for price conversion
     setRate(exchangeRateService.currentRate);
+    loadProducts();
   }, []);
 
-  const filteredProducts = mockProducts.filter(p =>
+  const filteredProducts = products.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) ||
     p.category.toLowerCase().includes(search.toLowerCase())
   );
 
-  const renderProduct = ({ item }: { item: typeof mockProducts[0] }) => (
+  const getProductImage = (item: any) => {
+    if (item.image_url) {
+      return { uri: item.image_url };
+    }
+    if (item.image) {
+      return item.image;
+    }
+    const match = mockProducts.find(p => p.name === item.name || p.id === item.id);
+    if (match && match.image) {
+      return match.image;
+    }
+    return require('../assets/products/bisteck.png');
+  };
+
+  const renderProduct = ({ item }: { item: any }) => (
     <View style={[styles.productCard, SHADOWS.medium]}>
       <View style={styles.imageContainer}>
-        <Image source={item.image} style={styles.productImage} resizeMode="cover" />
+        <Image source={getProductImage(item)} style={styles.productImage} contentFit="cover" />
         <View style={styles.categoryBadge}>
           <Text style={styles.categoryText}>{item.category.toUpperCase()}</Text>
         </View>
@@ -69,38 +117,55 @@ export default function ProductsScreen() {
             </View>
           </View>
 
-          <View style={styles.searchBox}>
-            <Ionicons name="search" size={20} color={COLORS.textSecondary} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Buscar por nombre o categoría..."
-              placeholderTextColor={COLORS.textSecondary}
-              value={search}
-              onChangeText={setSearch}
-            />
-            {search.length > 0 && (
-              <TouchableOpacity onPress={() => setSearch('')}>
-                <Ionicons name="close-circle" size={20} color={COLORS.textSecondary} />
-              </TouchableOpacity>
-            )}
+          <View style={styles.searchRow}>
+            <View style={styles.searchBox}>
+              <Ionicons name="search" size={20} color={COLORS.textSecondary} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Buscar por nombre o categoría..."
+                placeholderTextColor={COLORS.textSecondary}
+                value={search}
+                onChangeText={setSearch}
+              />
+              {search.length > 0 && (
+                <TouchableOpacity onPress={() => setSearch('')}>
+                  <Ionicons name="close-circle" size={20} color={COLORS.textSecondary} />
+                </TouchableOpacity>
+              )}
+            </View>
+            <TouchableOpacity
+              onPress={handleSyncCatalog}
+              style={[styles.syncButton, SHADOWS.medium]}
+              activeOpacity={0.7}
+            >
+              <Ionicons name="cloud-download-outline" size={24} color={COLORS.primary} />
+              <Text style={styles.syncButtonText}>ACTUALIZAR</Text>
+            </TouchableOpacity>
           </View>
         </SafeAreaView>
       </LinearGradient>
 
-      <FlatList
-        data={filteredProducts}
-        keyExtractor={item => item.id}
-        renderItem={renderProduct}
-        numColumns={isTablet ? 3 : 2}
-        contentContainerStyle={styles.list}
-        columnWrapperStyle={styles.columnWrapper}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="cube-outline" size={80} color={COLORS.border} />
-            <Text style={styles.emptyText}>No se encontraron productos</Text>
-          </View>
-        }
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.loadingText}>Cargando catálogo...</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredProducts}
+          keyExtractor={item => item.id}
+          renderItem={renderProduct}
+          numColumns={isTablet ? 4 : 2}
+          contentContainerStyle={styles.list}
+          columnWrapperStyle={styles.columnWrapper}
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="cube-outline" size={80} color={COLORS.border} />
+              <Text style={styles.emptyText}>No se encontraron productos</Text>
+            </View>
+          }
+        />
+      )}
     </View>
   );
 }
@@ -144,16 +209,37 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: SPACING.lg,
+    marginTop: SPACING.lg,
+    gap: SPACING.md,
+  },
   searchBox: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.white,
-    marginHorizontal: SPACING.lg,
-    marginTop: SPACING.lg,
     paddingHorizontal: SPACING.lg,
     height: 55,
     borderRadius: 16,
     ...SHADOWS.medium,
+  },
+  syncButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.white,
+    paddingHorizontal: SPACING.lg,
+    height: 55,
+    borderRadius: 16,
+    gap: 8,
+  },
+  syncButtonText: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: COLORS.primary,
+    letterSpacing: 0.5,
   },
   searchInput: {
     flex: 1,
@@ -162,23 +248,23 @@ const styles = StyleSheet.create({
     color: COLORS.text,
   },
   list: {
-    padding: SPACING.lg,
-    paddingTop: SPACING.xl,
+    padding: SPACING.md,
+    paddingTop: SPACING.lg,
   },
   columnWrapper: {
     justifyContent: 'flex-start',
-    gap: SPACING.lg,
+    gap: SPACING.md,
   },
   productCard: {
     flex: 1,
-    maxWidth: isTablet ? '31.5%' : '48%',
+    maxWidth: isTablet ? '23.6%' : '48%',
     backgroundColor: COLORS.white,
-    borderRadius: 24,
-    marginBottom: SPACING.lg,
+    borderRadius: 12,
+    marginBottom: SPACING.md,
     overflow: 'hidden',
   },
   imageContainer: {
-    height: 150,
+    height: 80,
     width: '100%',
     position: 'relative',
   },
@@ -188,33 +274,33 @@ const styles = StyleSheet.create({
   },
   categoryBadge: {
     position: 'absolute',
-    top: 10,
-    left: 10,
+    top: 4,
+    left: 4,
     backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    borderRadius: 5,
   },
   categoryText: {
     color: COLORS.white,
-    fontSize: 10,
+    fontSize: 8,
     fontWeight: '900',
   },
   productInfo: {
-    padding: SPACING.md,
+    padding: SPACING.xs,
   },
   productName: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '800',
     color: COLORS.text,
-    height: 44,
+    height: 26,
   },
   priceContainer: {
-    marginTop: SPACING.sm,
+    marginTop: SPACING.xs,
     backgroundColor: COLORS.background,
-    padding: 10,
-    borderRadius: 16,
-    gap: 4,
+    padding: 5,
+    borderRadius: 8,
+    gap: 2,
   },
   priceRow: {
     flexDirection: 'row',
@@ -222,24 +308,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   priceLabel: {
-    fontSize: 10,
+    fontSize: 7,
     fontWeight: '900',
     color: COLORS.textSecondary,
   },
   priceValueUsd: {
-    fontSize: 18,
+    fontSize: 11,
     fontWeight: '900',
     color: COLORS.primary,
   },
   priceValueBs: {
-    fontSize: 16,
+    fontSize: 9,
     fontWeight: 'bold',
     color: COLORS.secondary,
   },
   divider: {
     height: 1,
     backgroundColor: COLORS.border,
-    opacity: 0.5,
+    opacity: 0.2,
   },
   emptyContainer: {
     marginTop: 100,
@@ -250,5 +336,17 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontWeight: 'bold',
     marginTop: SPACING.md,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 100,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: COLORS.textSecondary,
+    fontWeight: '600',
   },
 });

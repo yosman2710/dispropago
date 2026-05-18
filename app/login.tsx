@@ -1,10 +1,11 @@
 import { authService } from '@/constants/SupabaseSim';
 import { COLORS, SHADOWS, SPACING } from '@/constants/theme';
+import { CustomAlert } from '@/components/CustomAlert';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Dimensions, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
@@ -39,7 +40,11 @@ export default function LoginScreen() {
         router.replace('/');
       }
     } else {
-      Alert.alert('Error', 'PIN incorrecto. Intente nuevamente.');
+      CustomAlert.show({
+        title: 'PIN Incorrecto',
+        message: 'El PIN ingresado no es válido. Intente nuevamente.',
+        type: 'error',
+      });
       setPin('');
     }
   };

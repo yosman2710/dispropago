@@ -55,7 +55,8 @@
             "backgroundColor": "#000000"
           }
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -64,7 +65,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "9d607529-a43e-45f9-ac93-dbd0577010f5"
+        "projectId": "26c02889-be6a-4b28-9f58-251922f31a05"
       }
     },
     "owner": "disprocar"

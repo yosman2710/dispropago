@@ -1,3 +1,4 @@
+import { CustomAlertProvider } from '@/components/CustomAlert';
 import * as NavigationBar from 'expo-navigation-bar';
 import { Stack } from 'expo-router';
 import React, { useEffect } from 'react';
@@ -19,7 +20,7 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <>
+    <CustomAlertProvider>
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="login" />
@@ -30,6 +31,6 @@ export default function RootLayout() {
         <Stack.Screen name="orders" />
         <Stack.Screen name="modal" />
       </Stack>
-    </>
+    </CustomAlertProvider>
   );
 }

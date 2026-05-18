@@ -177,6 +177,19 @@ export const storageService = {
   },
 
   /**
+   * Reset local sales array to empty to start a new shift/day.
+   */
+  async resetLocalSales() {
+    try {
+      await AsyncStorage.setItem(SALES_STORAGE_KEY, JSON.stringify([]));
+      return { success: true };
+    } catch (e) {
+      console.error('Error resetting local sales:', e);
+      return { success: false, error: e };
+    }
+  },
+
+  /**
    * Synchronize all unsynced local sales to Supabase.
    */
   async syncToSupabase() {
@@ -275,6 +288,82 @@ export const storageService = {
         error: e,
         message: 'Ocurrió un problema inesperado al sincronizar con el servidor.'
       };
+    }
+  }
+};
+
+const PRODUCTS_CACHE_KEY = '@pos_cached_products';
+
+export const productsService = {
+  /**
+   * Carga los productos desde el caché local de AsyncStorage.
+   * Si no hay caché guardado, retorna los mockProducts locales por defecto.
+   */
+  async getCachedProducts() {
+    try {
+      const cachedStr = await AsyncStorage.getItem(PRODUCTS_CACHE_KEY);
+      if (cachedStr) {
+        return JSON.parse(cachedStr);
+      }
+    } catch (e) {
+      console.error('Error cargando productos en caché:', e);
+    }
+    return mockProducts;
+  },
+
+  /**
+   * Intenta descargar los productos actualizados de Supabase y los guarda en el caché local.
+   */
+  async updateCatalog() {
+    try {
+      // 1. Verificar conexión a internet
+      const hasInternet = await checkInternet();
+      if (!hasInternet) {
+        return { 
+          success: false, 
+          error: 'NO_INTERNET', 
+          message: 'Sin conexión a internet. Revisa tu red y vuelve a intentarlo.' 
+        };
+      }
+
+      // 2. Fetch de Supabase
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_active', true)
+        .eq('in_sale', true)
+        .order('name', { ascending: true });
+
+      if (error) throw error;
+
+      if (data) {
+        const formattedProducts = data.map((item: any) => ({
+          id: item.id.toString(),
+          name: item.name,
+          price_usd: parseFloat(item.price_usd),
+          category: item.category || 'Carnes',
+          image_url: item.image_url || null
+        }));
+
+        // 3. Prefetch e iniciar la descarga en caché física de todas las imágenes
+        const { Image } = require('expo-image');
+        formattedProducts.forEach((item: any) => {
+          if (item.image_url) {
+            Image.prefetch(item.image_url).catch((err: any) => 
+              console.warn('Error pre-descargando imagen para caché offline:', item.image_url, err)
+            );
+          }
+        });
+
+        // 4. Guardar en caché local
+        await AsyncStorage.setItem(PRODUCTS_CACHE_KEY, JSON.stringify(formattedProducts));
+        return { success: true, count: formattedProducts.length, data: formattedProducts };
+      }
+      
+      return { success: false, message: 'No se encontraron productos en el servidor.' };
+    } catch (e: any) {
+      console.error('Error actualizando catálogo desde Supabase:', e);
+      return { success: false, message: e.message || 'Error al conectar con el servidor.' };
     }
   }
 };

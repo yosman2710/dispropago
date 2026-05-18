@@ -5,8 +5,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { CustomAlert } from '@/components/CustomAlert';
 
 export default function SalesReport() {
   const router = useRouter();
@@ -78,11 +79,64 @@ export default function SalesReport() {
     setExporting(false);
 
     if (result.success) {
-      Alert.alert('Exportación Exitosa', `Se han sincronizado ${result.count || 0} registros con el servidor.`);
+      CustomAlert.show({
+        title: 'Exportación Exitosa',
+        message: `Se han sincronizado ${result.count || 0} registros con el servidor.`,
+        type: 'success',
+      });
       loadSales(); // Refresh to update synced status if needed
     } else {
-      Alert.alert('Exportación Fallida', result.message || 'No se pudo sincronizar los datos. Verifique la conexión.');
+      CustomAlert.show({
+        title: 'Exportación Fallida',
+        message: result.message || 'No se pudo sincronizar los datos. Verifique la conexión.',
+        type: 'error',
+      });
     }
+  };
+
+  const handleNewShift = async () => {
+    // 1. Check if there are unsynced sales
+    const unsyncedCount = sales.filter((s) => !s.synced).length;
+
+    if (unsyncedCount > 0) {
+      CustomAlert.show({
+        title: 'Ventas sin Sincronizar',
+        message: `Tienes ${unsyncedCount} ventas pendientes por subir al servidor. Por favor, pulsa primero el botón 'EXPORTAR' para asegurar los datos antes de reiniciar la jornada.`,
+        type: 'warning',
+      });
+      return;
+    }
+
+    // 2. Ask for confirmation
+    CustomAlert.show({
+      title: '¿Iniciar Nueva Jornada?',
+      message: 'Esto restablecerá todos los acumulados de caja, métodos de pago y lista de productos vendidos a cero. Asegúrese de haber impreso su Reporte Z físico primero.',
+      type: 'question',
+      buttons: [
+        { text: 'CANCELAR', style: 'cancel' },
+        {
+          text: 'REINICIAR',
+          style: 'destructive',
+          onPress: async () => {
+            const res = await storageService.resetLocalSales();
+            if (res.success) {
+              CustomAlert.show({
+                title: '¡Jornada Reiniciada!',
+                message: 'La caja ha comenzado desde cero con éxito.',
+                type: 'success',
+              });
+              loadSales(); // Refresh list, resetting totals to $0.00
+            } else {
+              CustomAlert.show({
+                title: 'Error',
+                message: 'No se pudo reiniciar la jornada local.',
+                type: 'error',
+              });
+            }
+          }
+        }
+      ]
+    });
   };
 
   return (
@@ -98,7 +152,9 @@ export default function SalesReport() {
               <Ionicons name="chevron-back" size={28} color={COLORS.white} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>RESUMEN DE VENTAS</Text>
-            <View style={{ width: 44 }} />
+            <TouchableOpacity onPress={handleNewShift} style={styles.backButton} activeOpacity={0.7}>
+              <Ionicons name="sunny" size={24} color={COLORS.white} />
+            </TouchableOpacity>
           </View>
         </SafeAreaView>
       </LinearGradient>
@@ -182,17 +238,33 @@ export default function SalesReport() {
         <TouchableOpacity 
           style={[styles.footerBtn, styles.closeBtn]} 
           onPress={() => {
-            Alert.alert('Cierre de Turno', '¿Seguro que desea imprimir el cierre de caja (Z)?', [
-              { text: 'CANCELAR', style: 'cancel' },
-              { text: 'IMPRIMIR', onPress: async () => {
-                try {
-                  await printerService.printZReceipt(totals);
-                  Alert.alert('Éxito', 'Cierre impreso correctamente.');
-                } catch (e: any) {
-                  Alert.alert('Error', e.message || 'No se pudo imprimir el cierre.');
+            CustomAlert.show({
+              title: 'Cierre de Turno',
+              message: '¿Seguro que desea imprimir el cierre de caja (Z)?',
+              type: 'question',
+              buttons: [
+                { text: 'CANCELAR', style: 'cancel' },
+                {
+                  text: 'IMPRIMIR',
+                  onPress: async () => {
+                    try {
+                      await printerService.printZReceipt(totals);
+                      CustomAlert.show({
+                        title: 'Éxito',
+                        message: 'Cierre impreso correctamente.',
+                        type: 'success',
+                      });
+                    } catch (e: any) {
+                      CustomAlert.show({
+                        title: 'Error',
+                        message: e.message || 'No se pudo imprimir el cierre.',
+                        type: 'error',
+                      });
+                    }
+                  }
                 }
-              }}
-            ]);
+              ]
+            });
           }}
         >
           <Text style={styles.footerBtnText}>CIERRE</Text>

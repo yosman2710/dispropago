@@ -1,11 +1,12 @@
 import { printerService } from '@/constants/PrinterService';
 import { storageService } from '@/constants/SupabaseSim';
 import { COLORS, SHADOWS, SPACING } from '@/constants/theme';
+import { CustomAlert } from '@/components/CustomAlert';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { Alert, FlatList, Modal, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { FlatList, Modal, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function SalesHistory() {
@@ -26,7 +27,11 @@ export default function SalesHistory() {
   const handleSync = async () => {
     const unsyncedCount = sales.filter(s => !s.synced).length;
     if (unsyncedCount === 0) {
-      Alert.alert('Sincronización', 'Todas las ventas ya están en el servidor.');
+      CustomAlert.show({
+        title: 'Sincronización',
+        message: 'Todas las ventas ya están en el servidor.',
+        type: 'info',
+      });
       return;
     }
 
@@ -35,17 +40,26 @@ export default function SalesHistory() {
     setSyncing(false);
 
     if (result.success) {
-      Alert.alert('Sincronización Completada', `Se han exportado ${result.count} ventas correctamente.`);
+      CustomAlert.show({
+        title: 'Sincronización Completada',
+        message: `Se han exportado ${result.count} ventas correctamente.`,
+        type: 'success',
+      });
       loadSales();
     } else {
-      Alert.alert('Sincronización Fallida', result.message || 'No se pudo conectar con el servidor.');
+      CustomAlert.show({
+        title: 'Sincronización Fallida',
+        message: result.message || 'No se pudo conectar con el servidor.',
+        type: 'error',
+      });
     }
   };
   const handleVoid = async (saleId: string) => {
-    Alert.alert(
-      'Anular Venta',
-      '¿Está seguro de que desea anular esta venta? Esta acción no se puede deshacer.',
-      [
+    CustomAlert.show({
+      title: 'Anular Venta',
+      message: '¿Está seguro de que desea anular esta venta? Esta acción no se puede deshacer.',
+      type: 'question',
+      buttons: [
         { text: 'CANCELAR', style: 'cancel' },
         {
           text: 'SÍ, ANULAR',
@@ -53,22 +67,34 @@ export default function SalesHistory() {
           onPress: async () => {
             const result = await storageService.voidSale(saleId);
             if (result?.success) {
-              Alert.alert('Éxito', 'La venta ha sido anulada.');
+              CustomAlert.show({
+                title: 'Éxito',
+                message: 'La venta ha sido anulada.',
+                type: 'success',
+              });
               setSelectedSale(null);
               loadSales();
             }
           }
         }
       ]
-    );
+    });
   };
 
   const handleReprint = async (sale: any) => {
     try {
       await printerService.printReceipt(sale);
-      Alert.alert('Éxito', 'Re-impresión enviada correctamente.');
+      CustomAlert.show({
+        title: 'Éxito',
+        message: 'Re-impresión enviada correctamente.',
+        type: 'success',
+      });
     } catch (e: any) {
-      Alert.alert('Error', e.message || 'No se pudo enviar el comando a la impresora.');
+      CustomAlert.show({
+        title: 'Error',
+        message: e.message || 'No se pudo enviar el comando a la impresora.',
+        type: 'error',
+      });
     }
   };
 

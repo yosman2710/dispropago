@@ -1,11 +1,12 @@
 import { printerService } from '@/constants/PrinterService';
 import { exchangeRateService, storageService } from '@/constants/SupabaseSim';
 import { COLORS, SHADOWS, SPACING } from '@/constants/theme';
+import { CustomAlert } from '@/components/CustomAlert';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
@@ -64,7 +65,11 @@ export default function PaymentScreen() {
 
   const finalizeSale = async () => {
     if (remainingUsd > 0.01) {
-      Alert.alert('Saldo Pendiente', 'Aún falta dinero por cobrar.');
+      CustomAlert.show({
+        title: 'Saldo Pendiente',
+        message: 'Aún falta dinero por cobrar. Ingrese el monto restante.',
+        type: 'warning',
+      });
       return;
     }
 
@@ -94,14 +99,15 @@ export default function PaymentScreen() {
 
     const savedSale = await storageService.saveSale(saleData);
 
-    Alert.alert(
-      '¡Venta Registrada!',
-      '¿Desea imprimir la factura física?',
-      [
+    CustomAlert.show({
+      title: '¡Venta Registrada!',
+      message: '¿Desea imprimir la factura física?',
+      type: 'question',
+      buttons: [
         {
           text: 'NO, FINALIZAR',
           style: 'cancel',
-          onPress: () => finishFlow()
+          onPress: () => router.replace('/')
         },
         {
           text: 'SÍ, IMPRIMIR',
@@ -119,32 +125,32 @@ export default function PaymentScreen() {
               });
 
               if (printSuccess) {
-                Alert.alert('¡Éxito!', 'Factura impresa correctamente.', [{ text: 'OK', onPress: () => finishFlow() }]);
+                CustomAlert.show({
+                  title: '¡Éxito!',
+                  message: 'Factura impresa correctamente.',
+                  type: 'success',
+                  buttons: [{ text: 'OK', onPress: () => router.replace('/') }]
+                });
               } else {
-                Alert.alert(
-                  'Problema de Impresión',
-                  'No se pudo conectar con la impresora. Verifique que esté encendida y el Bluetooth activado.',
-                  [{ text: 'ENTENDIDO', onPress: () => finishFlow() }]
-                );
+                CustomAlert.show({
+                  title: 'Problema de Impresión',
+                  message: 'No se pudo conectar con la impresora. Verifique que esté encendida y el Bluetooth activado.',
+                  type: 'warning',
+                  buttons: [{ text: 'ENTENDIDO', onPress: () => router.replace('/') }]
+                });
               }
             } catch (error: any) {
-              Alert.alert(
-                'Problema de Impresión',
-                error.message || 'Ocurrió un error al intentar imprimir.',
-                [{ text: 'ENTENDIDO, FINALIZAR', onPress: () => finishFlow() }]
-              );
+              CustomAlert.show({
+                title: 'Problema de Impresión',
+                message: error.message || 'Ocurrió un error al intentar imprimir.',
+                type: 'error',
+                buttons: [{ text: 'ENTENDIDO, FINALIZAR', onPress: () => router.replace('/') }]
+              });
             }
           }
         }
       ]
-    );
-  };
-
-  const finishFlow = () => {
-    Alert.alert('Transacción Completa', 'La venta ha sido guardada con éxito.', [
-      { text: 'NUEVA VENTA', onPress: () => router.replace('/sale') },
-      { text: 'IR AL INICIO', onPress: () => router.replace('/') }
-    ]);
+    });
   };
 
   const KeypadButton = ({ label, value, isAction = false }: { label: string | React.ReactNode, value: string, isAction?: boolean }) => (

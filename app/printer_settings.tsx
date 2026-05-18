@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import BleManager from 'react-native-ble-manager';
 import { printerService } from '@/constants/PrinterService';
 import { COLORS, SHADOWS, SPACING } from '@/constants/theme';
+import { CustomAlert } from '@/components/CustomAlert';
 
 export default function PrinterSettings() {
   const router = useRouter();
@@ -37,7 +38,11 @@ export default function PrinterSettings() {
       setDevices(bonded);
     } catch (error) {
       console.error(error);
-      Alert.alert('Error', 'No se pudieron cargar los dispositivos vinculados. Verifique que el Bluetooth esté encendido.');
+      CustomAlert.show({
+        title: 'Error de Conexión',
+        message: 'No se pudieron cargar los dispositivos vinculados. Verifique que el Bluetooth esté encendido.',
+        type: 'error',
+      });
     } finally {
       setScanning(false);
     }
@@ -47,13 +52,18 @@ export default function PrinterSettings() {
     try {
       await printerService.connect(device.id);
       setConnectedMac(device.id);
-      Alert.alert(
-        '¡Impresora Seleccionada!',
-        `Se ha configurado la impresora ${device.name || 'Desconocida'}.`,
-        [{ text: 'OK', onPress: () => router.back() }]
-      );
+      CustomAlert.show({
+        title: '¡Impresora Seleccionada!',
+        message: `Se ha configurado la impresora ${device.name || 'Desconocida'} con éxito.`,
+        type: 'success',
+        buttons: [{ text: 'OK', onPress: () => router.back() }]
+      });
     } catch (error) {
-      Alert.alert('Error', 'No se pudo guardar la configuración.');
+      CustomAlert.show({
+        title: 'Error',
+        message: 'No se pudo guardar la configuración de la impresora.',
+        type: 'error',
+      });
     }
   };
 
