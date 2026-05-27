@@ -1,11 +1,11 @@
 import { printerService } from '@/constants/PrinterService';
-import { exchangeRateService, storageService } from '@/constants/SupabaseSim';
+import { exchangeRateService, storageService, settingsService } from '@/constants/SupabaseSim';
 import { COLORS, SHADOWS, SPACING } from '@/constants/theme';
 import { CustomAlert } from '@/components/CustomAlert';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dimensions, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -35,16 +35,76 @@ export default function PaymentScreen() {
 
   const [activeInput, setActiveInput] = useState<keyof typeof payments>('cashBs');
 
-  const paidUsd = parseFloat(payments.cashUsd) + (parseFloat(payments.cashBs) / rate) + (parseFloat(payments.pos) / rate) + (parseFloat(payments.transfer) / rate);
-  const remainingUsd = totalAmountUsd - paidUsd;
+  // Cargar configuración de descuento por efectivo en $ (primero Supabase, luego caché)
+  const [discountConfig, setDiscountConfig] = useState({ enabled: false, percentage: 0 });
+
+  useEffect(() => {
+    const loadDiscount = async () => {
+      try {
+        // Intenta obtener la configuración actualizada desde Supabase directamente
+        const result = await settingsService.updateSettings();
+        if (result && result.success && result.data) {
+          setDiscountConfig(result.data);
+          console.log('[Descuento] Configuración cargada desde Supabase:', result.data);
+        } else {
+          // Si falla (sin internet, etc.) usa el caché local
+          const cached = await settingsService.getCachedSettings();
+          setDiscountConfig(cached);
+          console.log('[Descuento] Configuración cargada desde caché local:', cached);
+        }
+      } catch (err) {
+        // Último recurso: caché local
+        try {
+          const cached = await settingsService.getCachedSettings();
+          setDiscountConfig(cached);
+        } catch (e2) {
+          console.error('Error cargando configuración de descuento:', e2);
+        }
+      }
+    };
+    loadDiscount();
+  }, []);
+
+  // Helper para parsear pagos de forma segura (maneja '0', '', NaN)
+  const safeNum = (val: string) => {
+    const n = parseFloat(val);
+    return isNaN(n) ? 0 : n;
+  };
+
+  // El descuento aplica SOLO si hay algún pago en USD Efectivo y los demás métodos están en cero
+  // OJO: Si aún no han ingresado nada (todo en cero), el descuento NO se aplica visualmente,
+  // para mostrar el "Total original de primera instancia".
+  const hasCashUsd = safeNum(payments.cashUsd) > 0;
+  const otherMethodsZero = safeNum(payments.cashBs) === 0 && 
+                           safeNum(payments.pos) === 0 && 
+                           safeNum(payments.transfer) === 0;
+
+  const isDiscountApplied = hasCashUsd && otherMethodsZero && discountConfig.enabled && discountConfig.percentage > 0;
+  const discountFactor = isDiscountApplied ? (1 - discountConfig.percentage / 100) : 1;
+
+  const activeTotalUsd = totalAmountUsd * discountFactor;
+  const activeTotalBs = totalAmountBs * discountFactor;
+
+  const paidUsd = safeNum(payments.cashUsd) + (safeNum(payments.cashBs) / rate) + (safeNum(payments.pos) / rate) + (safeNum(payments.transfer) / rate);
+  const remainingUsd = activeTotalUsd - paidUsd;
   const remainingBs = Math.max(0, remainingUsd * rate);
 
   const selectPaymentMethod = (id: keyof typeof payments) => {
     setActiveInput(id);
     if (payments[id] === '0' && remainingUsd > 0.01) {
+      let fillUsd = remainingUsd;
+      let fillBs = remainingBs;
+      
+      // Si seleccionamos Efectivo USD y los demás métodos están en cero, calculamos el total con descuento
+      if (id === 'cashUsd' && otherMethodsZero && discountConfig.enabled && discountConfig.percentage > 0) {
+        const discountedTotal = totalAmountUsd * (1 - discountConfig.percentage / 100);
+        fillUsd = discountedTotal; // Asumimos que los demás métodos están en 0
+        fillBs = discountedTotal * rate;
+      }
+
       setPayments(prev => ({
         ...prev,
-        [id]: id === 'cashUsd' ? remainingUsd.toFixed(2) : (remainingUsd * rate).toFixed(2)
+        [id]: id === 'cashUsd' ? fillUsd.toFixed(2) : fillBs.toFixed(2)
       }));
     }
   };
@@ -74,8 +134,8 @@ export default function PaymentScreen() {
     }
 
     const saleData = {
-      total_usd: totalAmountUsd,
-      total_bs: totalAmountBs,
+      total_usd: activeTotalUsd,
+      total_bs: activeTotalBs,
       customer: {
         cedula: customerCedula,
         name: customerName,
@@ -87,14 +147,18 @@ export default function PaymentScreen() {
         weight: item.weight,
         total: item.price_usd * rate * item.weight
       })),
+      discount_percentage: isDiscountApplied ? discountConfig.percentage : 0,
       payments: {
         cash_bs: parseFloat(payments.cashBs),
         pos: parseFloat(payments.pos),
         transfer: parseFloat(payments.transfer),
         cash_usd: parseFloat(payments.cashUsd),
+        discount_applied: isDiscountApplied,
+        original_total_usd: totalAmountUsd,
+        original_total_bs: totalAmountBs,
       },
       rate: rate,
-      change_usd: paidUsd > totalAmountUsd ? paidUsd - totalAmountUsd : 0
+      change_usd: paidUsd > activeTotalUsd ? paidUsd - activeTotalUsd : 0
     };
 
     const savedSale = await storageService.saveSale(saleData);
@@ -183,8 +247,16 @@ export default function PaymentScreen() {
             <View style={styles.summaryTop}>
               <View>
                 <Text style={styles.summaryLabel}>TOTAL COMPRA</Text>
-                <Text style={styles.totalUsdValue}>${totalAmountUsd.toFixed(2)} USD</Text>
-                <Text style={styles.totalBsValue}>{totalAmountBs.toLocaleString()} Bs.</Text>
+                <Text style={styles.totalUsdValue}>${activeTotalUsd.toFixed(2)} USD</Text>
+                <Text style={styles.totalBsValue}>{activeTotalBs.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} Bs.</Text>
+                {isDiscountApplied && (
+                  <View style={styles.discountBadge}>
+                    <Ionicons name="sparkles" size={12} color={COLORS.white} />
+                    <Text style={styles.discountBadgeText}>
+                      DTO. EFECTIVO USD {discountConfig.percentage}% APLICADO
+                    </Text>
+                  </View>
+                )}
               </View>
               <View style={styles.statusBadge}>
                 <Ionicons name={remainingUsd <= 0.01 ? "checkmark-circle" : "time"} size={24} color={remainingUsd <= 0.01 ? COLORS.success : COLORS.warning} />
@@ -195,6 +267,16 @@ export default function PaymentScreen() {
             </View>
 
             <View style={styles.divider} />
+
+            {/* Banner comercial de sugerencia si el descuento está habilitado pero no se ha aplicado y se cumplen las condiciones base */}
+            {discountConfig.enabled && !isDiscountApplied && otherMethodsZero && (
+              <View style={styles.discountTip}>
+                <Ionicons name="information-circle" size={16} color="#00C853" />
+                <Text style={styles.discountTipText}>
+                  ¡Ahorra {discountConfig.percentage}% pagando solo en Efectivo $! Total: ${(totalAmountUsd * (1 - discountConfig.percentage / 100)).toFixed(2)} USD.
+                </Text>
+              </View>
+            )}
 
             <View style={styles.summaryBottom}>
               <Text style={styles.summaryLabel}>SALDO RESTANTE</Text>
@@ -300,4 +382,39 @@ const styles = StyleSheet.create({
   avatarText: { color: COLORS.white, fontWeight: 'bold' },
   customerMiniName: { fontSize: 14, fontWeight: '900' },
   customerMiniSub: { fontSize: 12, color: COLORS.textSecondary },
+  discountBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#00C853',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    marginTop: 6,
+    alignSelf: 'flex-start'
+  },
+  discountBadgeText: {
+    color: COLORS.white,
+    fontSize: 9,
+    fontWeight: '900',
+    letterSpacing: 0.5
+  },
+  discountTip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(0, 200, 83, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 200, 83, 0.2)',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 12,
+    marginBottom: SPACING.sm
+  },
+  discountTipText: {
+    color: '#00C853',
+    fontSize: 10,
+    fontWeight: 'bold',
+    flex: 1
+  }
 });

@@ -12,6 +12,7 @@ CREATE TABLE public.sales (
     payment_cash_bs numeric(12,2) DEFAULT 0,
     payment_pos_bs numeric(12,2) DEFAULT 0,
     payment_transfer_bs numeric(12,2) DEFAULT 0,
+    discount_percentage numeric(5,2) DEFAULT 0,
     receipt_number text,
     purchase_number serial,
     cashier_name text,
@@ -38,3 +39,23 @@ ALTER TABLE public.sale_items ENABLE ROW LEVEL SECURITY;
 -- Create default policies for public access (Adjust for production)
 CREATE POLICY "Allow authenticated insert for sales" ON public.sales FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow authenticated insert for sale_items" ON public.sale_items FOR INSERT WITH CHECK (true);
+
+-- 4. Table: settings (Global configuration parameters)
+CREATE TABLE public.settings (
+    key text PRIMARY KEY,
+    value jsonb NOT NULL,
+    updated_at timestamp with time zone DEFAULT now()
+);
+
+-- Enable Row Level Security
+ALTER TABLE public.settings ENABLE ROW LEVEL SECURITY;
+
+-- Create default policies for public access (Adjust for production)
+CREATE POLICY "Allow read for everyone" ON public.settings FOR SELECT USING (true);
+CREATE POLICY "Allow insert/update for settings" ON public.settings FOR ALL USING (true) WITH CHECK (true);
+
+-- Default initial value for cash_usd_discount
+INSERT INTO public.settings (key, value)
+VALUES ('cash_usd_discount', '{"enabled": false, "percentage": 5}')
+ON CONFLICT (key) DO NOTHING;
+

@@ -114,6 +114,15 @@ export const PrinterService = {
       }
 
       payload += '[C]-------------------------------\n';
+      if (sale.payments?.discount_applied) {
+        const pct = sale.payments.discount_percentage || 0;
+        const origUsd = sale.payments.original_total_usd || 0;
+        const discountUsd = origUsd - (sale.total_usd || 0);
+        
+        payload += `[L]Subtotal Original: [R]$${origUsd.toFixed(2)}\n`;
+        payload += `[L]Desc. Efectivo $ (${pct}%): [R]-$${discountUsd.toFixed(2)}\n`;
+        payload += '[C]...............................\n';
+      }
       payload += '[L]<b>TOTAL BS:</b>\n';
       payload += `[R]<font size='big'>${(sale.total_bs || 0).toFixed(2)}</font>\n`;
       payload += `[L]TASA: ${sale.rate || 0} Bs/$\n`;

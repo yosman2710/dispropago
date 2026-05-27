@@ -1,9 +1,10 @@
-import { authService, exchangeRateService } from '@/constants/SupabaseSim';
+import { authService, exchangeRateService, settingsService, checkInternet } from '@/constants/SupabaseSim';
 import { COLORS, SHADOWS, SPACING } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useEffect } from 'react';
+import { CustomAlert } from '@/components/CustomAlert';
+import React, { useEffect, useState } from 'react';
 import { Dimensions, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 const { width } = Dimensions.get('window');
@@ -11,8 +12,9 @@ const isTablet = width > 768;
 
 export default function Dashboard() {
   const router = useRouter();
-  const [rate, setRate] = React.useState(exchangeRateService.currentRate);
-  const [cashierName, setCashierName] = React.useState('Cajero de Turno');
+  const [rate, setRate] = useState(exchangeRateService.currentRate);
+  const [cashierName, setCashierName] = useState('Cajero de Turno');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   useEffect(() => {
     const checkAuthAndRate = async () => {
@@ -25,8 +27,11 @@ export default function Dashboard() {
 
       const cachedRate = await exchangeRateService.loadStoredRate();
       setRate(cachedRate);
+      
+      // Intentar actualizar tasas y configuraciones en segundo plano
       await exchangeRateService.updateRate();
       setRate(exchangeRateService.currentRate);
+      await settingsService.updateSettings(); // Descarga y cachea la configuración
     };
 
     checkAuthAndRate();
@@ -35,6 +40,46 @@ export default function Dashboard() {
   const handleLogout = async () => {
     await authService.logout();
     router.replace('/login');
+  };
+
+  const handleRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+
+    const hasInternet = await checkInternet();
+    if (!hasInternet) {
+      CustomAlert.show({
+        title: 'Sin Conexión',
+        message: 'No tienes conexión a internet para actualizar la tasa y el descuento. Se usará la última configuración guardada.',
+        type: 'error'
+      });
+      setIsRefreshing(false);
+      return;
+    }
+
+    try {
+      await exchangeRateService.updateRate();
+      setRate(exchangeRateService.currentRate);
+      const settingsResult = await settingsService.updateSettings();
+      
+      if (settingsResult?.success) {
+        CustomAlert.show({
+          title: 'Actualizado',
+          message: 'Tasa BCV y configuraciones actualizadas correctamente.',
+          type: 'success'
+        });
+      } else {
+        throw new Error('Error al actualizar descuento');
+      }
+    } catch (e) {
+      CustomAlert.show({
+        title: 'Error de Actualización',
+        message: 'Hubo un problema actualizando la configuración. Intenta nuevamente más tarde.',
+        type: 'warning'
+      });
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   const menuItems = [
@@ -60,6 +105,9 @@ export default function Dashboard() {
             <View style={styles.headerRight}>
               <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
                 <Ionicons name="log-out-outline" size={24} color={COLORS.white} />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.settingsBtn} onPress={handleRefresh} disabled={isRefreshing}>
+                <Ionicons name={isRefreshing ? "sync" : "refresh"} size={24} color={COLORS.white} />
               </TouchableOpacity>
               <View style={styles.tasaChip}>
                 <Text style={styles.tasaLabel}>TASA BCV</Text>

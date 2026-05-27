@@ -232,6 +232,7 @@ export const storageService = {
             payment_cash_bs: sale.payments?.cash_bs ? parseFloat(sale.payments.cash_bs) : 0,
             payment_pos_bs: sale.payments?.pos ? parseFloat(sale.payments.pos) : 0,
             payment_transfer_bs: sale.payments?.transfer ? parseFloat(sale.payments.transfer) : 0,
+            discount_percentage: sale.discount_percentage || 0,
             receipt_number: sale.receipt_number || sale.id.slice(0, 8).toUpperCase(),
             cashier_name: sale.cashier_name,
             payment_details: sale.payments,
@@ -292,6 +293,64 @@ export const storageService = {
   }
 };
 
+const SETTINGS_CACHE_KEY = '@pos_cached_settings';
+
+export const settingsService = {
+  defaultSettings: { enabled: false, percentage: 5 },
+
+  /**
+   * Carga la configuración del descuento desde AsyncStorage
+   */
+  async getCachedSettings() {
+    try {
+      const cachedStr = await AsyncStorage.getItem(SETTINGS_CACHE_KEY);
+      if (cachedStr) {
+        return JSON.parse(cachedStr);
+      }
+    } catch (e) {
+      console.error('Error cargando configuraciones en caché:', e);
+    }
+    return this.defaultSettings;
+  },
+
+  /**
+   * Descarga la configuración de descuento de Supabase y la guarda localmente
+   */
+  async updateSettings() {
+    try {
+      const hasInternet = await checkInternet();
+      if (!hasInternet) {
+        return { success: false, error: 'NO_INTERNET' };
+      }
+
+      const { data, error } = await supabase
+        .from('settings')
+        .select('*')
+        .eq('key', 'cash_usd_discount')
+        .single();
+
+      if (error) {
+        console.warn('Advertencia cargando ajustes de Supabase:', error);
+        return { success: false, error: error.message };
+      }
+
+      if (data) {
+        const value = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+        const formatted = {
+          enabled: value.enabled ?? false,
+          percentage: parseFloat(value.percentage ?? 5)
+        };
+        await AsyncStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(formatted));
+        return { success: true, data: formatted };
+      }
+    } catch (e: any) {
+      console.error('Error actualizando configuraciones desde Supabase:', e);
+      return { success: false, error: e.message };
+    }
+    return { success: false };
+  }
+};
+
 const PRODUCTS_CACHE_KEY = '@pos_cached_products';
 
 export const productsService = {
@@ -324,6 +383,13 @@ export const productsService = {
           error: 'NO_INTERNET', 
           message: 'Sin conexión a internet. Revisa tu red y vuelve a intentarlo.' 
         };
+      }
+
+      // Sincronizar también las configuraciones globales
+      try {
+        await settingsService.updateSettings();
+      } catch (err) {
+        console.warn('Error sincronizando configuraciones globales:', err);
       }
 
       // 2. Fetch de Supabase
