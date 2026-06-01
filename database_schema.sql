@@ -59,3 +59,9 @@ INSERT INTO public.settings (key, value)
 VALUES ('cash_usd_discount', '{"enabled": false, "percentage": 5}')
 ON CONFLICT (key) DO NOTHING;
 
+-- Default initial value for dollar_rate
+INSERT INTO public.settings (key, value)
+VALUES ('dollar_rate', '{"rate": 47.50}')
+ON CONFLICT (key) DO NOTHING;
+
+

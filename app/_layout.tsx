@@ -47,9 +47,17 @@ function AppSplash({ onFinish }: { onFinish: () => void }) {
       }),
     ]).start();
 
-    // Pulsing rings
-    const pulseRing = (scale: Animated.Value, opacity: Animated.Value, delay: number) => {
-      Animated.loop(
+    // Pulsing rings — store references so we can stop them on unmount
+    const ring1Loop = { animation: null as ReturnType<typeof Animated.loop> | null };
+    const ring2Loop = { animation: null as ReturnType<typeof Animated.loop> | null };
+
+    const pulseRing = (
+      scale: Animated.Value,
+      opacity: Animated.Value,
+      delay: number,
+      ref: { animation: ReturnType<typeof Animated.loop> | null }
+    ) => {
+      ref.animation = Animated.loop(
         Animated.sequence([
           Animated.delay(delay),
           Animated.parallel([
@@ -61,12 +69,13 @@ function AppSplash({ onFinish }: { onFinish: () => void }) {
             Animated.timing(opacity, { toValue: 0.6, duration: 0, useNativeDriver: true }),
           ]),
         ])
-      ).start();
+      );
+      ref.animation.start();
     };
 
-    setTimeout(() => {
-      pulseRing(ringScale1, ringOpacity1, 0);
-      pulseRing(ringScale2, ringOpacity2, 600);
+    const ringTimeout = setTimeout(() => {
+      pulseRing(ringScale1, ringOpacity1, 0, ring1Loop);
+      pulseRing(ringScale2, ringOpacity2, 600, ring2Loop);
     }, 400);
 
     // Text fade in
@@ -94,7 +103,12 @@ function AppSplash({ onFinish }: { onFinish: () => void }) {
       }).start(() => onFinish());
     }, 2600);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(ringTimeout);
+      ring1Loop.animation?.stop();
+      ring2Loop.animation?.stop();
+    };
   }, []);
 
   return (

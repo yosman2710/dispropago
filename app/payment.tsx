@@ -22,8 +22,16 @@ export default function PaymentScreen() {
     cartItems: string
   }>();
 
-  const cart = JSON.parse(cartItems || '[]');
-  const totalAmountUsd = parseFloat(totalUsd || '0');
+  const rawCartItems = cartItems || '[]';
+  let cart: any[] = [];
+  try {
+    const parsed = JSON.parse(rawCartItems);
+    cart = Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.error('Error parseando cartItems en PaymentScreen:', e);
+    cart = [];
+  }
+  const totalAmountUsd = parseFloat(totalUsd || '0') || 0;
   const totalAmountBs = totalAmountUsd * rate;
 
   const [payments, setPayments] = useState({

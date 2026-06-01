@@ -165,6 +165,13 @@ export default function SalesHistory() {
               <Ionicons name="chevron-back" size={28} color={COLORS.white} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>HISTORIAL DE VENTAS</Text>
+            <TouchableOpacity
+              onPress={handleSync}
+              style={[styles.syncButton, syncing && styles.syncDisabled]}
+              disabled={syncing}
+            >
+              <Ionicons name={syncing ? 'sync' : 'cloud-upload-outline'} size={22} color={COLORS.white} />
+            </TouchableOpacity>
           </View>
         </SafeAreaView>
       </LinearGradient>
@@ -239,8 +246,8 @@ export default function SalesHistory() {
               <View style={styles.montoPagadoBox}>
                 <Text style={styles.montoLabel}>MONTO PAGADO</Text>
                 <View style={styles.montoDetails}>
-                  <Text style={styles.montoSubText}>USD$ {selectedSale?.payments.cash_usd.toFixed(2)}</Text>
-                  <Text style={styles.montoSubText}>Bs. {selectedSale?.total_bs.toFixed(2)}</Text>
+                  <Text style={styles.montoSubText}>USD$ {(selectedSale?.payments?.cash_usd ?? 0).toFixed(2)}</Text>
+                  <Text style={styles.montoSubText}>Bs. {(selectedSale?.total_bs ?? 0).toFixed(2)}</Text>
                 </View>
               </View>
               <View style={styles.ticketActions}>

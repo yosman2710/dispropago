@@ -1,5 +1,5 @@
 import { printerService } from '@/constants/PrinterService';
-import { authService, storageService } from '@/constants/SupabaseSim';
+import { authService, storageService, exchangeRateService } from '@/constants/SupabaseSim';
 import { COLORS, SHADOWS, SPACING } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -192,7 +192,7 @@ export default function SalesReport() {
           </View>
           <View style={styles.paymentRow}>
             <Text style={styles.paymentLabel}>Dólares $ (equiv. Bs)</Text>
-            <Text style={styles.paymentValue}>{(totals.cashUsd * (sales[0]?.rate || 45)).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
+            <Text style={styles.paymentValue}>{(totals.cashUsd * exchangeRateService.currentRate).toLocaleString(undefined, { minimumFractionDigits: 2 })}</Text>
           </View>
         </View>
 

@@ -130,10 +130,10 @@ export const PrinterService = {
 
       payload += '[C]-------------------------------\n';
       payload += '[C]<b>FORMAS DE PAGO</b>\n';
-      if (sale.payments?.cash_bs) payload += `[L]Efectivo Bs: [R]${sale.payments.cash_bs.toFixed(2)}\n`;
-      if (sale.payments?.pos) payload += `[L]Punto de Venta: [R]${sale.payments.pos.toFixed(2)}\n`;
-      if (sale.payments?.transfer) payload += `[L]Transferencia: [R]${sale.payments.transfer.toFixed(2)}\n`;
-      if (sale.payments?.cash_usd) payload += `[L]Efectivo $: [R]$${sale.payments.cash_usd.toFixed(2)}\n`;
+      if (sale.payments?.cash_bs && sale.payments.cash_bs > 0) payload += `[L]Efectivo Bs: [R]${Number(sale.payments.cash_bs).toFixed(2)}\n`;
+      if (sale.payments?.pos && sale.payments.pos > 0) payload += `[L]Punto de Venta: [R]${Number(sale.payments.pos).toFixed(2)}\n`;
+      if (sale.payments?.transfer && sale.payments.transfer > 0) payload += `[L]Transferencia: [R]${Number(sale.payments.transfer).toFixed(2)}\n`;
+      if (sale.payments?.cash_usd && sale.payments.cash_usd > 0) payload += `[L]Efectivo $: [R]$${Number(sale.payments.cash_usd).toFixed(2)}\n`;
       payload += '[C]-------------------------------\n';
 
       payload += '[L]\n';
@@ -216,7 +216,7 @@ export const PrinterService = {
       payload += '[L]PRECIO      CANT.       TOTAL\n';
       payload += '[C]-------------------------------\n';
       
-      if (totals.itemsDetail && Array.isArray(totals.itemsDetail)) {
+      if (totals.itemsDetail && Array.isArray(totals.itemsDetail) && totals.itemsDetail.length > 0) {
         totals.itemsDetail.forEach((item: any) => {
           const rawName = (item.name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').substring(0, 31);
           payload += `[L]${rawName.padEnd(31, '.')}\n`;
@@ -227,6 +227,8 @@ export const PrinterService = {
           
           payload += `[L]${price.padEnd(10)}  ${qty.padEnd(7)} [R]${tot}\n`;
         });
+      } else {
+        payload += '[C]Sin items registrados\n';
       }
       
       payload += '[C]-------------------------------\n';

@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
+import { Image as ExpoImage } from 'expo-image';
 
 // Supabase Configuration
 const SUPABASE_URL = 'https://miuzphjvwzjycmbesjug.supabase.co';
@@ -41,26 +42,44 @@ export const exchangeRateService = {
   },
 
   /**
-   * Intenta obtener la tasa de internet y la guarda localmente
+   * Obtiene la tasa de cambio configurada desde Supabase y la guarda localmente
    */
   async updateRate() {
     try {
-      const response = await fetch('https://ve.dolarapi.com/v1/dolares/oficial');
-      if (response.ok) {
-        const data = await response.json();
-        if (data && data.promedio) {
-          this.currentRate = data.promedio;
+      const hasInternet = await checkInternet();
+      if (!hasInternet) {
+        console.log('Sin internet. Usando tasa persistente:', this.currentRate);
+        await this.loadStoredRate();
+        return this.currentRate;
+      }
+
+      const { data, error } = await supabase
+        .from('settings')
+        .select('*')
+        .eq('key', 'dollar_rate')
+        .single();
+
+      if (error) {
+        console.warn('Error al cargar la tasa desde Supabase:', error);
+        await this.loadStoredRate();
+        return this.currentRate;
+      }
+
+      if (data) {
+        // En Supabase, el campo value se guarda como jsonb
+        const value = typeof data.value === 'string' ? JSON.parse(data.value) : data.value;
+        const rate = parseFloat(value.rate);
+        
+        if (!isNaN(rate)) {
+          this.currentRate = rate;
 
           // GUARDAR EN ASYNC STORAGE
           await AsyncStorage.setItem(RATE_STORAGE_KEY, this.currentRate.toString());
-
-          console.log('Tasa actualizada y guardada:', this.currentRate);
-          return this.currentRate;
+          console.log('Tasa de Supabase actualizada y guardada:', this.currentRate);
         }
       }
     } catch (error) {
-      // Si falla el internet, intenta cargar la que ya teníamos guardada
-      console.log('Sin internet o error. Usando tasa persistente:', this.currentRate);
+      console.log('Error en updateRate. Usando tasa persistente:', this.currentRate, error);
       await this.loadStoredRate();
     }
     return this.currentRate;
@@ -104,9 +123,12 @@ const getNextReceiptNumber = async (cashierName: string) => {
  */
 export const checkInternet = async () => {
   try {
-    // Ping Google's DNS to verify actual internet access
-    const response = await fetch('https://8.8.8.8', { method: 'HEAD', mode: 'no-cors' });
-    return !!response;
+    // Google Connectivity Check — returns 204 with no body when online
+    const response = await fetch('https://connectivitycheck.gstatic.com/generate_204', {
+      method: 'GET',
+      cache: 'no-cache',
+    });
+    return response.status === 204;
   } catch (e) {
     return false;
   }
@@ -134,13 +156,23 @@ export const storageService = {
       };
 
       const existingSalesStr = await AsyncStorage.getItem(SALES_STORAGE_KEY);
-      const existingSales = existingSalesStr ? JSON.parse(existingSalesStr) : [];
+      let existingSales: any[] = [];
+      if (existingSalesStr) {
+        try {
+          existingSales = JSON.parse(existingSalesStr);
+          if (!Array.isArray(existingSales)) existingSales = [];
+        } catch (parseErr) {
+          console.error('Datos de ventas corruptos, reiniciando almacenamiento:', parseErr);
+          existingSales = [];
+        }
+      }
 
       const updatedSales = [...existingSales, newSale];
       await AsyncStorage.setItem(SALES_STORAGE_KEY, JSON.stringify(updatedSales));
 
       return newSale;
     } catch (e) {
+      console.error('Error crítico guardando venta:', e);
       throw e;
     }
   },
@@ -412,10 +444,9 @@ export const productsService = {
         }));
 
         // 3. Prefetch e iniciar la descarga en caché física de todas las imágenes
-        const { Image } = require('expo-image');
         formattedProducts.forEach((item: any) => {
           if (item.image_url) {
-            Image.prefetch(item.image_url).catch((err: any) => 
+            ExpoImage.prefetch(item.image_url).catch((err: any) =>
               console.warn('Error pre-descargando imagen para caché offline:', item.image_url, err)
             );
           }

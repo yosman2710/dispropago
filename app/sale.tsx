@@ -4,7 +4,7 @@ import { CustomAlert } from '@/components/CustomAlert';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { Dimensions, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -71,8 +71,9 @@ export default function SaleScreen() {
     loadProducts();
   }, []);
 
-  const filteredProducts = products.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase())
+  const filteredProducts = useMemo(
+    () => products.filter(p => p.name.toLowerCase().includes(search.toLowerCase())),
+    [products, search]
   );
 
   const confirmWeight = () => {
@@ -102,7 +103,11 @@ export default function SaleScreen() {
 
   const proceedToPayment = () => {
     if (!customer.cedula || !customer.name || !customer.phone) {
-      alert('Por favor complete todos los datos del cliente.');
+      CustomAlert.show({
+        title: 'Datos Incompletos',
+        message: 'Por favor complete todos los datos del cliente.',
+        type: 'warning',
+      });
       return;
     }
     setCustomerModalVisible(false);
@@ -142,7 +147,7 @@ export default function SaleScreen() {
     return require('../assets/products/bisteck.png');
   };
 
-  const renderProduct = ({ item }: { item: any }) => (
+  const renderProduct = useCallback(({ item }: { item: any }) => (
     <TouchableOpacity
       style={[styles.productCard, SHADOWS.medium]}
       onPress={() => setSelectedProduct(item)}
@@ -163,9 +168,9 @@ export default function SaleScreen() {
         </View>
       </View>
     </TouchableOpacity>
-  );
+  ), []);
 
-  const renderCartItem = ({ item }: { item: CartItem }) => (
+  const renderCartItem = useCallback(({ item }: { item: CartItem }) => (
     <View style={styles.cartItem}>
       <View style={styles.cartItemWeightBadge}>
         <Text style={styles.cartItemWeightText}>{item.weight.toFixed(2)}</Text>
@@ -182,7 +187,7 @@ export default function SaleScreen() {
         <Ionicons name="trash" size={20} color={COLORS.danger} />
       </TouchableOpacity>
     </View>
-  );
+  ), [removeFromCart]);
 
   return (
     <View style={styles.container}>
