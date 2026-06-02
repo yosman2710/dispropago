@@ -5,7 +5,7 @@ import { CustomAlert } from '@/components/CustomAlert';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { FlatList, Modal, ScrollView, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -99,7 +99,7 @@ export default function SalesHistory() {
   };
 
 
-  const renderSale = ({ item }: { item: any }) => (
+  const renderSale = useCallback(({ item }: { item: any }) => (
     <TouchableOpacity
       style={[styles.saleCard, SHADOWS.small, item.voided && { opacity: 0.6 }]}
       onPress={() => setSelectedSale(item)}
@@ -150,7 +150,7 @@ export default function SalesHistory() {
         </View>
       </View>
     </TouchableOpacity>
-  );
+  ), []);
 
   return (
     <View style={styles.container}>
