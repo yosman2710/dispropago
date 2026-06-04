@@ -1,9 +1,9 @@
-import { authService, exchangeRateService, settingsService, checkInternet } from '@/constants/SupabaseSim';
+import { CustomAlert } from '@/components/CustomAlert';
+import { authService, checkInternet, exchangeRateService, settingsService } from '@/constants/SupabaseSim';
 import { COLORS, SHADOWS, SPACING } from '@/constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
-import { CustomAlert } from '@/components/CustomAlert';
 import React, { useEffect, useState } from 'react';
 import { Dimensions, StatusBar, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,7 +27,7 @@ export default function Dashboard() {
 
       const cachedRate = await exchangeRateService.loadStoredRate();
       setRate(cachedRate);
-      
+
       // Intentar actualizar tasas y configuraciones en segundo plano
       await exchangeRateService.updateRate();
       setRate(exchangeRateService.currentRate);
@@ -61,7 +61,7 @@ export default function Dashboard() {
       await exchangeRateService.updateRate();
       setRate(exchangeRateService.currentRate);
       const settingsResult = await settingsService.updateSettings();
-      
+
       if (settingsResult?.success) {
         CustomAlert.show({
           title: 'Actualizado',

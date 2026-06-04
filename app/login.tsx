@@ -5,7 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
-import { Dimensions, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width } = Dimensions.get('window');
@@ -18,7 +18,10 @@ const CASHIERS = [
   { id: '4', name: 'Caja 4', icon: 'person', color: '#92FE9D' },
   { id: '5', name: 'Caja 5', icon: 'person', color: '#f12711' },
   { id: '6', name: 'Caja 6', icon: 'person', color: '#f5af19' },
+  { id: '7', name: 'Caja 7', icon: 'person', color: '#ec008c' },
+  { id: '8', name: 'Caja 8', icon: 'person', color: '#11998e' },
 ];
+
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -51,31 +54,37 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>DisproPago POS</Text>
-        <Text style={styles.subtitle}>Seleccione su Caja para continuar</Text>
-      </View>
+      <ScrollView 
+        contentContainerStyle={styles.scrollContainer}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+          <Text style={styles.title}>DisproPago POS</Text>
+          <Text style={styles.subtitle}>Seleccione su Caja para continuar</Text>
+        </View>
 
-      <View style={styles.grid}>
-        {CASHIERS.map((cashier) => (
-          <TouchableOpacity
-            key={cashier.id}
-            activeOpacity={0.8}
-            style={[styles.card, SHADOWS.medium]}
-            onPress={() => handleCashierSelect(cashier)}
-          >
-            <LinearGradient
-              colors={[cashier.color, cashier.color + '80']}
-              style={styles.cardGradient}
+        <View style={styles.grid}>
+          {CASHIERS.map((cashier) => (
+            <TouchableOpacity
+              key={cashier.id}
+              activeOpacity={0.8}
+              style={[styles.card, SHADOWS.medium]}
+              onPress={() => handleCashierSelect(cashier)}
             >
-              <View style={styles.iconContainer}>
-                <Ionicons name={cashier.icon as any} size={40} color={COLORS.white} />
-              </View>
-              <Text style={styles.cardText}>{cashier.name}</Text>
-            </LinearGradient>
-          </TouchableOpacity>
-        ))}
-      </View>
+              <LinearGradient
+                colors={[cashier.color, cashier.color + '80']}
+                style={styles.cardGradient}
+              >
+                <View style={styles.iconContainer}>
+                  <Ionicons name={cashier.icon as any} size={40} color={COLORS.white} />
+                </View>
+                <Text style={styles.cardText}>{cashier.name}</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          ))}
+        </View>
+      </ScrollView>
+
 
       {/* PIN Modal */}
       <Modal visible={showModal} transparent animationType="fade">
@@ -116,8 +125,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#0F172A', // Dark elegant background
+  },
+  scrollContainer: {
     paddingHorizontal: SPACING.xl,
     paddingTop: SPACING.xxl,
+    paddingBottom: SPACING.xxl,
   },
   header: {
     alignItems: 'center',
